@@ -1,0 +1,23 @@
+python-multipart
+python-dotenv
+debugpy
+# Pillow
+requests
+# beautifulsoup4
+
+requests
+ipython
+aiohttp
+boto3
+# openai
+
+uvicorn
+fastapi
+pydantic[email]
+redis
+beanie
+
+# python-jose[cryptography]
+# passlib[bcrypt]
+cryptography
+bcrypt
