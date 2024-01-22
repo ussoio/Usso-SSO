@@ -1,39 +1,33 @@
 """User router."""
 
 from fastapi import APIRouter, Depends, HTTPException, Response, Security
-from fastapi_jwt import JwtAuthorizationCredentials
 
-from app.models.user import User, UserOut, UserUpdate
-from app.jwt import access_security
-from app.util.current_user import current_user
+from app.middlewares.jwt_auth import jwt_access_security_user
+from app.models.user import User
+from app.serializers.user import UserSerializer, UserUpdate
+from app.serializers.jwt_auth import UserData
 
 router = APIRouter(prefix="/user", tags=["User"])
 
 
-@router.get("", response_model=UserOut)
-async def get_user(user: User = Depends(current_user)):  # type: ignore[no-untyped-def]
+@router.get("", response_model=UserSerializer)
+async def get_user(user: User = Security(jwt_access_security_user)):  # type: ignore[no-untyped-def]
     """Return the current user."""
-    return user
+    return UserSerializer(**user.model_dump())
 
 
-@router.patch("", response_model=UserOut)
-async def update_user(update: UserUpdate, user: User = Depends(current_user)):  # type: ignore[no-untyped-def]
+@router.patch("", response_model=UserSerializer)
+async def update_user(update: UserUpdate, user: User = Security(jwt_access_security_user)):  # type: ignore[no-untyped-def]
     """Update allowed user fields."""
-    fields = update.model_dump(exclude_unset=True)
-    if new_email := fields.pop("email", None):
-        if new_email != user.email:
-            if await User.by_email(new_email) is not None:
-                raise HTTPException(400, "Email already exists")
-            user.update_email(new_email)
-    user = user.model_copy(update=fields)
+    user.username = update.username
     await user.save()
     return user
 
 
 @router.delete("")
 async def delete_user(
-    auth: JwtAuthorizationCredentials = Security(access_security)
+    user: User = Security(jwt_access_security_user),
 ) -> Response:
     """Delete current user."""
-    await User.find_one(User.email == auth.subject["username"]).delete()
+    await user.delete()
     return Response(status_code=204)

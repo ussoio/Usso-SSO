@@ -1,14 +1,13 @@
 """Email router."""
 
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Body, HTTPException, Response
 from pydantic import EmailStr
 
+from app.middlewares.jwt_auth import access_security, user_from_token
 from app.models.user import User
-from app.jwt import access_security, user_from_token
 from app.util.mail import send_verification_email
-
 
 router = APIRouter(prefix="/mail", tags=["Mail"])
 

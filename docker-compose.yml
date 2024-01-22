@@ -6,14 +6,15 @@ services:
     restart: unless-stopped
     volumes:
       - .:/app
-    command: python main.py
+    command: python -m debugpy --listen 0.0.0.0:3000 main.py
+    # command: python main.py
     depends_on:
       # mongo:
       #   condition: service_healthy
       redis:
         condition: service_healthy
-    # ports:
-    #   - 8000:8000
+    ports:
+      - 3013:3000
     networks:
       - traefik-net
       - data

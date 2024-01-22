@@ -13,6 +13,7 @@ boto3
 
 uvicorn
 fastapi
+fastapi-mail
 pydantic[email]
 redis
 beanie
@@ -21,3 +22,5 @@ beanie
 # passlib[bcrypt]
 cryptography
 bcrypt
+pyjwt[crypto]
+password-strength

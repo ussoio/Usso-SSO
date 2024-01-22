@@ -1,18 +1,23 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+import fastapi
 from beanie import init_beanie
+from fastapi.responses import JSONResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from starlette.middleware.cors import CORSMiddleware
 
-from . import db, middleware, config, redis
+from app import exceptions
+from app.middlewares import cors
+from app.routes import auth, user, website
+
+from . import config, db, redis
 
 with open("DESCRIPTION.md", "r") as f:
     DESCRIPTION = f.read()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):  # type: ignore
+async def lifespan(app: fastapi.FastAPI):  # type: ignore
     """Initialize application services."""
     await db.init_db()
     redis.init_redis()
@@ -21,7 +26,7 @@ async def lifespan(app: FastAPI):  # type: ignore
     print("Shutdown complete")
 
 
-app = FastAPI(
+app = fastapi.FastAPI(
     title="Universal SSO",
     description=DESCRIPTION,
     version="0.1.0",
@@ -38,4 +43,18 @@ app = FastAPI(
 )
 
 
-app.add_middleware(middleware.DynamicCORSMiddleware)
+@app.exception_handler(exceptions.BaseHTTPException)
+async def base_http_exception_handler(
+    request: fastapi.Request, exc: exceptions.BaseHTTPException
+):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"message": exc.message, "error": exc.error},
+    )
+
+
+app.add_middleware(cors.DynamicCORSMiddleware)
+
+app.include_router(auth.router)
+app.include_router(user.router)
+app.include_router(website.router)

@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from pydantic import BaseModel
 
-from app.jwt import ACCESS_EXPIRES, REFRESH_EXPIRES
+from app.middlewares.jwt_auth import ACCESS_EXPIRES, REFRESH_EXPIRES
 
 
 class AccessToken(BaseModel):

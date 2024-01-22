@@ -5,9 +5,10 @@ from datetime import datetime
 from enum import Enum
 from typing import Annotated, Optional
 
-from app.util import utility
 from beanie import Indexed
 from pydantic import BaseModel, Field, root_validator
+
+from app.util import utility
 from server.redis import redis
 
 
@@ -24,7 +25,7 @@ class BaseDBModel(BaseModel):
     #     default_factory=lambda: BaseDBModel.get_unique_id()
     # )
     created_at: datetime = datetime.utcnow()
-    updated_at: datetime = datetime.utcnow()
+    # updated_at: datetime = datetime.utcnow()
     is_deleted: bool = False
     data: dict = {}
 
@@ -58,18 +59,19 @@ class BaseDBModel(BaseModel):
         return False
 
     @classmethod
-    async def list(cls) -> list["BaseDBModel"]:
+    def list(cls) -> list["BaseDBModel"]:
         return cls.find_all(cls.is_deleted == False)
 
     @classmethod
     async def get_by_uid(cls, uid: str) -> Optional["BaseDBModel"]:
         """Get a model by uid."""
-        item = redis.get(f"{cls.__name__}:{uid}")
-        if item:
-            return cls(**json.loads(item))
+        redis_key = f"{cls.__name__}:{uid}"
+        # item_str = redis.get(redis_key)
+        # if item_str:
+        #     return cls(**json.loads(item, object_hook=utility.json_deserializer))
         item = await cls.find_one(cls.uid == uid, cls.is_deleted == False)
         redis.set(
-            f"{cls.__name__}:{uid}",
+            redis_key,
             json.dumps(item.model_dump(), cls=utility.JSONSerializer),
             ex=60 * 20,
         )
@@ -103,6 +105,7 @@ class AuthMethod(str, Enum):
     email_password = "email/password"
     phone_otp = "phone/otp"
     authenticator_app = "authenticator_app"
+    email_link = "email/link"
 
     def needs_validation(self) -> bool:
         return self in (
@@ -111,5 +114,27 @@ class AuthMethod(str, Enum):
             AuthMethod.authenticator_app,
         )
 
+    @property
+    def max_attempts(self) -> int:
+        return 3 if self.needs_validation() else 0
+
+    @property
+    def max_age_minutes(self) -> int:
+        return {
+            AuthMethod.google: None,
+            AuthMethod.email_password: None,
+            AuthMethod.phone_otp: 5,
+            AuthMethod.authenticator_app: None,
+            AuthMethod.email_link: 24 * 60,
+        }[self]
+
     def needs_secret(self) -> bool:
         return self in (AuthMethod.email_password,)
+
+    def valid_by_login(self) -> bool:
+        return self in (
+            AuthMethod.google,
+            AuthMethod.phone_otp,
+            AuthMethod.authenticator_app,
+            AuthMethod.email_link,
+        )

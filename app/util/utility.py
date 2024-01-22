@@ -1,8 +1,8 @@
 import asyncio
 import base64
+import binascii
 import datetime
 import json
-import os
 import random
 import string
 import threading
@@ -21,10 +21,29 @@ class JSONSerializer(json.JSONEncoder):
         if isinstance(obj, datetime.datetime):
             return obj.strftime("%Y-%m-%d %H:%M:%S")
         if isinstance(obj, bytes):
-            return base64.b64encode(obj).decode("utf-8")
+            return f'b64:{base64.b64encode(obj).decode("utf-8")}'
         if hasattr(obj, "to_json"):
             return obj.to_json()
         return super().default(obj)
+
+
+def json_deserializer(dct):
+    for key, value in dct.items():
+        if isinstance(value, str):
+            # Try to decode datetime strings
+            try:
+                dct[key] = datetime.datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                pass
+
+            if value.startswith("b64:"):
+                base64_str = value[4:]  # Remove the 'b64:' prefix
+                try:
+                    dct[key] = base64.b64decode(base64_str)
+                except (ValueError, TypeError):
+                    pass
+
+    return dct
 
 
 def run_async_in_thread(func):

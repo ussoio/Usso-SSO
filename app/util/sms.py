@@ -4,9 +4,11 @@ import os
 
 import aiohttp
 import dotenv
-# from celery import shared_task
 
 from . import singleton
+
+# from celery import shared_task
+
 
 dotenv.load_dotenv()
 

@@ -1,6 +1,7 @@
 """FastAPI server configuration."""
 
 import os
+
 import dotenv
 from pydantic import BaseModel
 
@@ -21,6 +22,7 @@ class Settings(BaseModel):
     # Security settings
     secret_key: str = os.getenv("SECRET_KEY")
     salt: bytes = os.getenv("SALT").encode()
+    RSA_PASSWORD: bytes = os.getenv("RSA_PASSWORD").encode()
 
     # FastMail SMTP server settings
     mail_server: str = os.getenv("SMTP_HOST", default="smtp.myserver.io")
@@ -28,6 +30,7 @@ class Settings(BaseModel):
     mail_username: str = os.getenv("SMTP_USER", default="")
     mail_password: str = os.getenv("SMTP_PASS", default="")
     mail_sender: str = os.getenv("SMTP_SENDER", default="noreply@myserver.io")
+    mail_console: bool = os.getenv("SMTP_NO_SEND_SHOW_CONSOLE", default=False)
 
     testing: bool = os.getenv("TESTING", default=False)
 
