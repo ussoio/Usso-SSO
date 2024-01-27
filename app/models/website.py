@@ -25,8 +25,28 @@ class WebsiteConfig(base.BaseDBModel):
     otp_length: int = 4
     otp_message: str = "Your OTP is {otp}"
     email_timeout: int = 60 * 60 * 24 * 7
-    email_verification_template: str = "Welcome to {name}!\nWe just need to verify your email. Click on the below link to begin:\n{url}"  # todo complete email message
-    email_reset_template: str = "Welcome to {name}!\nSomeone have requested to reset password for your email address. Click on the below link to begin reset password or just ignore this email to do nothing:\n{url}"  # todo complete email message
+    # todo complete email message
+    email_verification_template: str = "<br />\n".join(
+        [
+            "Welcome to {name}!",
+            "We just need to verify your email. Click on the below link to begin:",
+            "{url}",
+        ]
+    )
+    email_reset_template: str = "<br />\n".join(
+        [
+            "Welcome to {name}!",
+            "Someone have requested to reset password for your email address. Click on the below link to begin reset password or just ignore this email to do nothing:",
+            "{url}",
+        ]
+    )
+    email_login_template: str = "<br />\n".join(
+        [
+            "Welcome to {name}!",
+            "Click on the below link to begin or just ignore this email to do nothing:",
+            "{url}",
+        ]
+    )
     access_timeout: int = 60 * 10
     refresh_timeout: int = 60 * 60 * 24 * 30
     available_methods: list[base.AuthMethod] = [
@@ -44,13 +64,23 @@ class WebsiteSMTP(BaseModel):
     use_ssl: bool = False
     sender: EmailStr
 
+    @classmethod
+    def from_env(cls):
+        return cls(
+            host=CONFIG.mail_server,
+            port=CONFIG.mail_port,
+            username=CONFIG.mail_username,
+            password=CONFIG.mail_password,
+            sender=CONFIG.mail_sender,
+        )
+
 
 class WebsiteSecrets(base.BaseDBModel):
     rsa_priv: bytes
     rsa_pub: bytes
     google_client_id: str | None = None
     google_client_secret: str | None = None
-    smtp: WebsiteSMTP | None = None
+    smtp: WebsiteSMTP | None = WebsiteSMTP.from_env()
 
     @root_validator(pre=True)
     def set_defaults(cls, values):
@@ -76,6 +106,13 @@ class WebsiteSecrets(base.BaseDBModel):
         values["rsa_priv"] = private_key
         values["rsa_pub"] = public_key
         return values
+
+    # @validator("smtp", pre=True)
+    # def smtp_validator(cls, v):
+    #     if v is None:
+    #         return WebsiteSMTP.from_env()
+
+    #     return WebsiteSMTP(**v)
 
 
 class Website(Document, base.BaseDBModel):
@@ -103,7 +140,8 @@ class Website(Document, base.BaseDBModel):
             return cls(**json.loads(website, object_hook=utility.json_deserializer))
         website = await cls.find_one(cls.origin == origin)
         if not website:
-            return None
+            website = await cls(origin=origin, user_id="123").save()
+            # return website
 
         redis.set(
             redis_key,
@@ -157,11 +195,20 @@ class Website(Document, base.BaseDBModel):
 
         if CONFIG.mail_console:
             print(message)
-            return
+            # return
         await self.get_mail().send_message(message)
 
+    async def send_login_email(self, email: str, token: str) -> None:
+        url = f"https://{self.origin}/auth/login-token?token={token}"
+        subject = (
+            f"{self.config.name} Email Login" if self.config.name else "Email Login"
+        )
+        await self.__send_template_email(
+            self.config.email_login_template, subject, email, url=url
+        )
+
     async def send_verification_email(self, email: str, token: str) -> None:
-        url = f"https://{self.origin}/auth/validate/{token}"
+        url = f"https://{self.origin}/auth/validate?token={token}"
         subject = (
             f"{self.config.name} Email Verification"
             if self.config.name
@@ -171,8 +218,8 @@ class Website(Document, base.BaseDBModel):
             self.config.email_verification_template, subject, email, url=url
         )
 
-    async def send_password_reset_email(self, email: str, token: str) -> None:
-        url = f"https://{self.origin}/auth/reset-password/{token}"
+    async def send_reset_password_email(self, email: str, token: str) -> None:
+        url = f"https://{self.origin}/auth/reset-password?token={token}"
         subject = (
             f"{self.config.name} Password Reset"
             if self.config.name

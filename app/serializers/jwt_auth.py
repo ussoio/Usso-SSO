@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from enum import Enum
-
+from typing import Any
 from pydantic import BaseModel, Field, validator
 
 
@@ -28,6 +28,7 @@ class JWTPayload(BaseModel):
     origin: str
     jwks_uri: str = "/website/jwks.json"
     token_type: str
+    data: dict[str, Any] = {}
 
     email: str | None = None
     phone: str | None = None

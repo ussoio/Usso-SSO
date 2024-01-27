@@ -3,22 +3,26 @@
 from datetime import datetime, timedelta
 from functools import partial
 
-from fastapi import APIRouter, Body, Depends, Request, Response, Security
-from starlette.status import HTTP_201_CREATED
-
 from app.exceptions import BaseHTTPException
 from app.middlewares.auth import create_basic_authenticator
 from app.middlewares.jwt_auth import (
     get_email_secret_data_from_token,
-    jwt_response,
-    jwt_refresh_security,
     jwt_access_security_user,
+    jwt_refresh_security,
+    jwt_refresh_security_None,
+    jwt_response,
 )
 from app.models.base import AuthMethod
 from app.models.user import BasicAuthenticator, User, UserAuthenticator
-from app.serializers.auth import BaseAuth, ForgetPasswordData
+from app.models.website import Website
+from app.serializers.auth import BaseAuth, ForgetPasswordData, OTPAuth
 from app.serializers.jwt_auth import AccessToken, JWTResponse
 from app.serializers.user import UserSerializer
+from fastapi import APIRouter, Body, Depends, Request, Response, Security
+from fastapi.responses import RedirectResponse, JSONResponse
+from requests_oauthlib import OAuth2Session
+from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
+from starlette.status import HTTP_201_CREATED
 
 router = APIRouter(prefix="/auth", tags=["Register"])
 
@@ -39,8 +43,16 @@ async def add_auth(
     user: User = Security(jwt_access_security_user),
 ) -> UserSerializer:
     """Return all routes."""
-    await user.add_authenticator(b_auth)
-    return UserSerializer(**user.model_dump())
+    existing_user, auth = await User.get_user_by_auth(b_auth)
+    if existing_user is None:
+        await user.add_authenticator(b_auth)
+        return UserSerializer(**user.model_dump())
+
+    if await auth.authenticate(b_auth.secret):
+        user = await user.merge(existing_user)
+        return UserSerializer(**user.model_dump())
+
+    raise BaseHTTPException(403, "already_exists_wrong_secret")
 
 
 @router.post("/register", response_model=UserSerializer)
@@ -84,32 +96,90 @@ async def refresh(
     return AccessToken(**token.model_dump())
 
 
-@router.post("/forgot-password")
-async def forgot_password(user_auth: ForgetPasswordData, request: Request) -> Response:
-    """Send password reset email."""
+@router.get("/refresh")
+async def refresh(
+    request: Request,
+    response: Response,
+    user: User = Security(jwt_refresh_security),
+) -> AccessToken:
+    """Return a new access token from a refresh token."""
+    token = await jwt_response(user, request, response, refresh=False)
+    return AccessToken(**token.model_dump())
 
+
+@router.post("/phone-otp-request")
+async def phone_otp_request(
+    request: Request,
+    phone: str = embed,
+) -> JSONResponse:
+    """Send OTP to phone using sms."""
+    b_auth = create_basic_authenticator(request, OTPAuth(phone=phone))
+    _, auth = await User.get_user_by_auth(b_auth)
+    otp = await auth.send_otp()
+    return JSONResponse(
+        {"message": f"{len(otp)}-digit otp sms has sent"}, status_code=200
+    )
+
+
+@router.post("/login-otp")
+async def login_otp(
+    request: Request,
+    response: Response,
+    otp_auth: OTPAuth,
+) -> JSONResponse:
+    """Send OTP to phone using sms."""
+    b_auth = create_basic_authenticator(request, otp_auth)
+    return await login(request, response, b_auth)
+
+
+@router.post("/email-otp-request")
+async def email_otp(
+    request: Request,
+    user_auth: ForgetPasswordData,
+) -> JSONResponse:
+    """Send otp login email."""
     b_auth = create_basic_authenticator(request, BaseAuth(representor=user_auth.email))
     user, auth = await User.get_user_by_auth(b_auth)
     if user is None:
         raise BaseHTTPException(404, "no_user")
 
-    # todo: send reset password link to user email
-    # token = access_security.create_access_token(user.jwt_subject)
-    # await send_password_reset_email(email, token)
-    return Response(status_code=200)
+    t_auth = await auth.send_email(topic="email_otp")
+    await user.add_authenticator(t_auth)
+    await user.save()
+
+    return JSONResponse({"message": "login email has sent"}, status_code=200)
 
 
-@router.post("/reset-password/{token}", response_model=UserSerializer)
-async def reset_password(request: Request, token: str, password: str = embed):  # type: ignore[no-untyped-def]
+@router.post("/forgot-password")
+async def forgot_password(
+    request: Request,
+    user_auth: ForgetPasswordData,
+    # user=Security(jwt_refresh_security_None),
+) -> JSONResponse:
+    """Send password reset email."""
+    b_auth = create_basic_authenticator(request, BaseAuth(representor=user_auth.email))
+    user, auth = await User.get_user_by_auth(b_auth)
+    if user is None:
+        raise BaseHTTPException(404, "no_user")
+
+    t_auth = await auth.send_email(topic="reset_password")
+    await user.add_authenticator(t_auth)
+    await user.save()
+
+    return JSONResponse({"message": "reset password email has sent"}, status_code=200)
+
+
+@router.post("/reset-password", response_model=UserSerializer)
+async def reset_password(
+    request: Request, response: Response, token: str, password: str = embed
+) -> UserSerializer:
     """Reset user password from token value."""
-    token_email, token_secret = get_email_secret_data_from_token(token)
-    b_auth = create_basic_authenticator(
-        request,
-        BaseAuth(
-            auth_method=AuthMethod.email_link,
-            representor=token_email,
-            secret=token_secret,
-        ),
+    origin, token_email, token_secret = get_email_secret_data_from_token(token)
+    b_auth = BasicAuthenticator(
+        interface=origin,
+        auth_method=AuthMethod.email_link,
+        representor=token_email,
+        secret=token_secret,
     )
     user, auth = await User.get_user_by_auth(b_auth)
     if user is None:
@@ -122,14 +192,14 @@ async def reset_password(request: Request, token: str, password: str = embed):  
     user.authenticators.remove(auth)
     for auth in user.authenticators:
         if (
-            auth.interface == b_auth.origin
-            and auth.auth_method == AuthMethod.email
+            auth.interface == b_auth.interface
+            and auth.auth_method == AuthMethod.email_password
             and auth.representor == token_email
         ):
             user.authenticators.remove(auth)
 
     auth = UserAuthenticator(
-        interface=b_auth.origin,
+        interface=b_auth.interface,
         representor=token_email,
         secret=password,
         validated_at=datetime.utcnow(),
@@ -138,11 +208,12 @@ async def reset_password(request: Request, token: str, password: str = embed):  
     user.is_active = True
     await user.add_authenticator(auth)
 
-    return user
+    token = await jwt_response(user, request, response, refresh=True)
+    return UserSerializer(token=token, **user.model_dump())
 
 
-@router.get("/validate/{token:path}", response_model=UserSerializer)
-async def validate(request: Request, token: str):  # type: ignore[no-untyped-def]
+@router.get("/validate", response_model=UserSerializer)
+async def validate(request: Request, response: Response, token: str):  # type: ignore[no-untyped-def]
     """Reset user password from token value."""
     origin, token_email, token_secret = get_email_secret_data_from_token(token)
     b_auth = BasicAuthenticator(
@@ -172,4 +243,199 @@ async def validate(request: Request, token: str):  # type: ignore[no-untyped-def
     user.is_active = True
     await user.save()
 
-    return user
+    token = await jwt_response(user, request, response, refresh=True)
+    return UserSerializer(token=token, **user.model_dump())
+
+
+@router.get("/login-token")
+async def login_token(
+    request: Request, response: Response, token: str
+) -> UserSerializer:  # type: ignore[no-untyped-def]
+    """Authenticate and returns the user's JWT."""
+    origin, token_email, token_secret = get_email_secret_data_from_token(token)
+    b_auth = BasicAuthenticator(
+        interface=origin,
+        auth_method=AuthMethod.email_link,
+        representor=token_email,
+        secret=token_secret,
+    )
+    user, auth = await User.get_user_by_auth(b_auth)
+    if user is None:
+        raise BaseHTTPException(404, "no_user")
+    if auth.max_age_minutes is not None and (
+        auth.created_at + timedelta(minutes=auth.max_age_minutes) < datetime.utcnow()
+    ):
+        raise BaseHTTPException(404, "link_expired")
+
+    user.authenticators.remove(auth)
+    user.is_active = True
+    await user.save()
+
+    token = await jwt_response(user, request, response, refresh=True)
+    return UserSerializer(token=token, **user.model_dump())
+
+
+@router.get("/google")
+async def google_login(request: Request):
+    """Google login."""
+    origin = request.url.hostname
+    website = await Website.get_by_origin(origin)
+    if website is None:
+        raise BaseHTTPException(404, "no_website")
+
+    client_id = website.secrets.google_client_id
+    client_secret = website.secrets.google_client_secret
+    redirect_uri = f"https://{origin}/auth/google-callback"
+    scopes = [
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/userinfo.profile",
+        "openid",
+    ]
+    oauth = OAuth2Session(client_id, redirect_uri=redirect_uri, scope=scopes)
+    authorization_url, state = oauth.authorization_url(
+        "https://accounts.google.com/o/oauth2/auth",
+        # access_type and prompt are Google specific extra
+        # parameters.
+        access_type="offline",
+        prompt="select_account",
+    )
+
+    response = RedirectResponse(url=authorization_url)
+
+    return response
+
+
+@router.get("/google-callback")
+async def google_login_callback(
+    request: Request,
+    response: Response,
+    logged_in_user=Depends(jwt_refresh_security_None),
+):
+    """Google login."""
+    try:
+        origin = request.url.hostname
+        website = await Website.get_by_origin(origin)
+        if website is None:
+            raise BaseHTTPException(404, "no_website")
+
+        client_id = website.secrets.google_client_id
+        client_secret = website.secrets.google_client_secret
+
+        redirect_uri = f"https://{origin}/auth/google-callback"
+        scopes = [
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/userinfo.profile",
+            "openid",
+        ]
+        oauth = OAuth2Session(client_id, redirect_uri=redirect_uri, scope=scopes)
+
+        url = str(request.url).replace("http:", "https:")
+        token = oauth.fetch_token(
+            "https://accounts.google.com/o/oauth2/token",
+            authorization_response=url,
+            # Google specific extra parameter used for client
+            # authentication
+            client_secret=client_secret,
+        )
+
+        oauth_userinfo_resp = oauth.get("https://www.googleapis.com/oauth2/v1/userinfo")
+
+        user_data = oauth_userinfo_resp.json()
+    except InvalidGrantError:
+        raise BaseHTTPException(400, "oath_failed")
+    except Exception as e:
+        raise BaseHTTPException(400, "error", str(e))
+
+    g_auth = BasicAuthenticator(
+        interface=origin,
+        auth_method=AuthMethod.google,
+        representor=user_data["email"],
+    )
+
+    # user, auth = await User.get_user_by_auth(g_auth)
+    user = await User.login(g_auth)
+    if user:
+        if logged_in_user:
+            user = await logged_in_user.merge(user)
+
+        # user.current_authenticator = auth
+        token = await jwt_response(user, request, response, refresh=True)
+        return UserSerializer(**user.model_dump(), token=token)
+
+    b_auth = BasicAuthenticator(
+        interface=origin,
+        auth_method=AuthMethod.email_password,
+        representor=user_data["email"],
+    )
+
+    user, auth = await User.get_user_by_auth(b_auth)
+    if user:
+        if logged_in_user:
+            user = await logged_in_user.merge(user)
+
+        gu_auth = await user.add_authenticator(g_auth)
+
+        if auth.validated_at is None:
+            auth.validated_at = datetime.utcnow()
+
+        user.is_active = True
+        await user.save()
+        user.current_authenticator = gu_auth
+        token = await jwt_response(user, request, response, refresh=True)
+        return UserSerializer(**user.model_dump(), token=token)
+
+    if logged_in_user is None:
+        user = await User.register(g_auth)
+    else:
+        user = logged_in_user
+        gu_auth = logged_in_user.add_authenticator(g_auth)
+        user.current_authenticator = gu_auth
+
+    user.current_authenticator.data = user_data
+    await user.save()
+
+    token = await jwt_response(user, request, response, refresh=True)
+    return UserSerializer(**user.model_dump(), token=token)
+
+
+@router.post("/logout")
+async def logout(
+    request: Request,
+    response: Response,
+    jti: str = embed,
+    user=Depends(jwt_refresh_security_None),
+):
+    """Logout."""
+    if user:
+        for session in user.login_sessions:
+            if session.jti == jti:
+                user.login_sessions.remove(session)
+                break
+        await user.save()
+
+    return JSONResponse({"message": f"{jti} session logged out"}, status_code=200)
+
+
+@router.get("/logout")
+async def logout(
+    request: Request,
+    response: Response,
+    user=Depends(jwt_refresh_security_None),
+):
+    """Logout."""
+    if user:
+        user.login_sessions.remove(user.current_session)
+        await user.save()
+
+    origin = request.url.hostname
+    parent_domain = ".".join(origin.split(".")[1:])
+    response.delete_cookie(
+        "access_token",
+        domain=parent_domain,
+        httponly=True,
+        samesite="none",
+        secure=True,
+    )
+    response.delete_cookie("refresh_token")
+
+    return {"message": "logged out"}

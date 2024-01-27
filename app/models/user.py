@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from beanie import Document, Link
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models import base
 from app.models.website import Website
@@ -17,21 +17,10 @@ from server.redis import redis
 
 
 class BasicAuthenticator(base.BaseDBModel):
-    # interface: Link[website.Website]  # website url which user come from
     interface: str  # website url which user come from
     auth_method: base.AuthMethod = base.AuthMethod.email_password
     representor: str
     secret: bytes | None = None
-
-    # @root_validator(pre=True)
-    # def get_interface(cls, values):
-    #     if type(values.get("interface")) == str:
-    #         loop = asyncio.get_event_loop()
-    #         values["interface"] = utility.run_async_in_thread(
-    #             website.Website.get_by_origin
-    #         )(values["interface"])
-
-    #     return values
 
 
 class UserAuthenticator(BasicAuthenticator):
@@ -58,16 +47,16 @@ class UserAuthenticator(BasicAuthenticator):
 
     async def validate(self, secret: str, **kwargs) -> bool:
         if self.auth_method == base.AuthMethod.email_password:
-            # todo complete send_validation
-            pass
+            return bool(self.validated_at) and password.check_password(
+                secret, self.secret
+            )
         elif self.auth_method == base.AuthMethod.phone_otp:
             redis_otp = redis.get(f"OTP:{self.interface}:{self.representor}")
             if secret == redis_otp:
                 await self.__make_valid()
                 return True
         elif self.auth_method == base.AuthMethod.google:
-            # todo complete send_validation
-            pass
+            return True
         elif self.auth_method == base.AuthMethod.authenticator_app:
             # todo complete send_validation
             pass
@@ -76,6 +65,25 @@ class UserAuthenticator(BasicAuthenticator):
 
     async def send_validation(self):
         if self.auth_method == base.AuthMethod.email_password:
+            website = await Website.get_by_origin(self.interface)
+            if website is None:
+                return
+
+            email_token = self.get_email_validation_token().decode("utf-8")
+            temp_ua = UserAuthenticator(
+                interface=self.interface,
+                auth_method=base.AuthMethod.email_link,
+                representor=self.representor,
+                secret=email_token,
+                hash=False,
+                max_age_minutes=base.AuthMethod.email_link.max_age_minutes,
+            )
+
+            await website.send_verification_email(
+                email=self.representor, token=email_token
+            )
+            return temp_ua
+        elif self.auth_method == base.AuthMethod.email_link:
             website = await Website.get_by_origin(self.interface)
             if website is None:
                 return
@@ -103,17 +111,43 @@ class UserAuthenticator(BasicAuthenticator):
             pass
 
     def get_email_validation_token(self) -> str:
-        assert self.auth_method == base.AuthMethod.email_password
+        assert self.auth_method in base.AuthMethod.email_methods()
         return base64.b64encode(
             f"{self.interface}:{self.representor}:{uuid.uuid4()}".encode("utf-8")
         )
 
-    async def send_otp(self) -> str:
+    async def send_email(self, topic="verify"):
+        assert self.auth_method in base.AuthMethod.email_methods()
+        website = await Website.get_by_origin(self.interface)
+        if website is None:
+            return
+
+        email_token = self.get_email_validation_token().decode("utf-8")
+        temp_ua = UserAuthenticator(
+            interface=self.interface,
+            auth_method=base.AuthMethod.email_link,
+            representor=self.representor,
+            secret=email_token,
+            hash=False,
+            max_age_minutes=base.AuthMethod.email_link.max_age_minutes,
+        )
+
+        methods = {
+            "verify": website.send_verification_email,
+            "reset_password": website.send_reset_password_email,
+            "email_otp": website.send_login_email,
+        }
+
+        await methods[topic](email=self.representor, token=email_token)
+
+        return temp_ua
+
+    async def send_otp(self, length=4) -> str:
         if self.auth_method != base.AuthMethod.phone_otp:
             return
 
         phone = self.representor
-        self.secret = str_tools.generate_random_chars(4, "1234567890")
+        self.secret = str_tools.generate_random_chars(length, "1234567890")
         await sms.send_sms_async(phone, f"رمز یک‌بار مصرف: {self.secret}")
         redis.set(f"OTP:{self.interface}:{phone}:{self.secret}", self.secret, ex=5 * 60)
         return self.secret
@@ -150,22 +184,34 @@ class UserAuthenticator(BasicAuthenticator):
 
 
 class LoginSession(BaseModel):
-    auth_method: base.AuthMethod
-    ip: str
-    user_agent: str
-    login_at: datetime = datetime.utcnow()
-    location: str | None = None
     jti: str
+    user_agent: str
+    auth_method: base.AuthMethod
+    login_at: datetime = datetime.utcnow()
+    max_age_minutes: int | None = None
+    ip: str
+    location: str | None = None
+
+    @property
+    def expire_at(self) -> datetime:
+        return self.login_at + timedelta(minutes=self.max_age_minutes)
+
+    @property
+    def is_expired(self) -> bool:
+        return self.expire_at < datetime.utcnow()
 
 
 class User(Document, base.BaseDBModel):
     name: str | None = None
     username: str | None = None
     authenticators: list[UserAuthenticator] = []
-    current_authenticator: UserAuthenticator | None = None
+    current_authenticator: UserAuthenticator | None = Field(default=None, exclude=True)
+    current_session: LoginSession | None = Field(default=None, exclude=True)
     last_activity: datetime = datetime.utcnow()
     is_active: bool = False
     login_sessions: list[LoginSession] = []
+    data: dict[str, Any] = {}
+    history: list[dict[str, Any]] = []
 
     # auth: UserAuthenticator = field(init=False, default=None)  # type: ignore
 
@@ -212,8 +258,8 @@ class User(Document, base.BaseDBModel):
                 # and auth.validated_at is not None
                 and auth.interface == b_auth.interface
             ):
-                # to check auth.max_age_minutes and send valid meessage for user
                 return user, auth
+                # to check auth.max_age_minutes and send valid meessage for user
                 if auth.max_age_minutes is None:
                     return user, auth
                 if (
@@ -263,17 +309,6 @@ class User(Document, base.BaseDBModel):
         user.current_authenticator = user_auth
         return user, created
 
-    async def validation(self) -> None:
-        """Save user to redis."""
-        return
-        auth = self.authenticators[0]
-        await auth.send_validation()
-        redis.set(
-            f"VALIDATION:{auth.interface}:{auth.representor}",
-            json.dumps(self.model_dump(), cls=utility.JSONSerializer),
-            ex=5 * 60,
-        )
-
     @property
     def jwt_payload(self) -> dict[str, Any]:
         """JWT payload fields."""
@@ -283,28 +318,45 @@ class User(Document, base.BaseDBModel):
 
     async def add_authenticator(self, b_auth: BasicAuthenticator) -> UserAuthenticator:
         """Add an authenticator to user."""
-        for auth in self.authenticators:
+        for i, auth in enumerate(self.authenticators):
             if (
                 auth.representor == b_auth.representor
                 and auth.auth_method == b_auth.auth_method
                 and auth.interface == b_auth.interface
             ):
+                if auth.max_age_minutes is not None:
+                    if (
+                        auth.last_activity + timedelta(minutes=auth.max_age_minutes)
+                        < datetime.utcnow()
+                    ):
+                        temp_ua = await auth.send_validation()
+                        if temp_ua is not None:
+                            self.authenticators[i] = temp_ua
+                            await self.save()
+                        return None
+
                 if auth.validated_at:
-                    return
+                    if not self.is_active:
+                        self.is_active = True
+                        await self.save()
+                    return auth
 
                 if b_auth.secret is None or auth.auth_method.needs_validation():
                     temp_ua = await auth.send_validation()
                     if temp_ua is not None:
                         self.authenticators.append(temp_ua)
                         await self.save()
-                    return
+                    return None
 
                 if await auth.validate(b_auth.secret):
                     self.last_activity = datetime.utcnow()
                     await self.save()
+                    return auth
 
                 return
 
+        if type(b_auth) == UserAuthenticator:
+            b_auth = BasicAuthenticator(**b_auth.model_dump())
         user_auth = UserAuthenticator(
             **b_auth.model_dump(),
             validated_at=None
@@ -319,22 +371,35 @@ class User(Document, base.BaseDBModel):
             if temp_ua is not None:
                 self.authenticators.append(temp_ua)
 
+        if not user_auth.auth_method.needs_validation():
+            self.is_active = True
+
         await self.save()
         return user_auth
 
-    async def merge(self, others: list["User"]) -> None:
-        """Merge two users."""
-        history = [self.model_dump()]
-        for other in others:
-            for auth in other.authenticators:
-                await self.add_authenticator(auth)
+    async def merge(self, other: "User") -> None:
+        """Merge two users.
+        The worst case scenario is that both users has some activity on the
+        other's website and has some records in their database
+        """
+        if self.uid == other.uid:
+            return self
+        if len(other.login_sessions) > len(self.login_sessions):
+            return await other.merge(self)
 
-            history.append(other.model_dump())
-            other.is_deleted = True
-            await other.save()
-        self.data["history"] = history
+        history = [self.model_dump()]
+        for auth in other.authenticators:
+            b_auth = BasicAuthenticator(**auth.model_dump())
+            await self.add_authenticator(b_auth)
+
+        history.append(other.model_dump())
+        other.is_deleted = True
+        await other.save()
+
+        self.history = self.history + history
         self.last_activity = datetime.utcnow()
         await self.save()
+        return self
 
 
 if __name__ == "__main__":

@@ -28,11 +28,11 @@ from starlette.status import HTTP_401_UNAUTHORIZED
 # from fastapi_jwt import JwtAuthorizationCredentials, JwtAccessBearer, JwtRefreshBearer
 
 
-async def get_token(user: User, website: Website, token_type: JWTMode) -> str:
+async def get_token(user: User, website: Website, token_type: JWTMode, **kwargs) -> str:
     """Return the user associated with a token value."""
     phone = None
     email = None
-    
+
     for auth in user.authenticators:
         if auth.auth_method == AuthMethod.phone_otp:
             phone = auth.representor
@@ -55,6 +55,8 @@ async def get_token(user: User, website: Website, token_type: JWTMode) -> str:
         phone=phone,
         is_active=user.is_active,
         authentication_method=user.current_authenticator.auth_method,
+        data=user.data,
+        **kwargs,
     )
 
     return website.get_token(payload.model_dump())
@@ -94,7 +96,7 @@ async def get_location(ip_address):
 
 
 async def jwt_response(
-    user: User, request: Request, response: Response, refresh=False
+    user: User, request: Request, response: Response, **kwargs
 ) -> JWTResponse:
     if user is None:
         raise BaseHTTPException(401, "unauthorized")
@@ -103,13 +105,18 @@ async def jwt_response(
     if website is None:
         raise BaseHTTPException(404, "bad_origin")
 
+    if user.current_session:
+        kwargs["jti"] = user.current_session.jti
     access_token = (
-        await get_token(user, website, JWTMode.ACCESS) if user.is_active else ""
+        await get_token(user, website, JWTMode.ACCESS, **kwargs)
+        if user.is_active
+        else ""
     )
 
     refresh_token = None
+    refresh = kwargs.get("refresh", False)
     if refresh:
-        refresh_token = await get_token(user, website, JWTMode.REFRESH)
+        refresh_token = await get_token(user, website, JWTMode.REFRESH, **kwargs)
         payload = jwt.decode(
             refresh_token,
             algorithms="RS256",
@@ -146,8 +153,8 @@ async def jwt_response(
                 value=refresh_token,
                 httponly=True,
                 max_age=website.config.refresh_timeout,
-                # samesite="strict",
-                samesite="none",
+                samesite="lax",
+                # samesite="none",
                 secure=True,
             )
 
@@ -161,8 +168,11 @@ async def jwt_response(
 
 def get_email_secret_data_from_token(token: str) -> tuple[str, str]:
     """Return the user associated with a token value."""
-    origin, email, secret = base64.b64decode(token).decode("utf-8").split(":")
-    return origin, email, secret
+    try:
+        origin, email, secret = base64.b64decode(token).decode("utf-8").split(":")
+        return origin, email, secret
+    except ValueError:
+        raise BaseHTTPException(status_code=HTTP_401_UNAUTHORIZED, error="unauthorized")
 
 
 async def user_data_from_token(token: str, origin: str) -> UserData | None:
@@ -191,7 +201,7 @@ async def user_from_token(token: str, origin: str) -> User | None:
     raise BaseHTTPException(status_code=HTTP_401_UNAUTHORIZED, error="unauthorized")
 
 
-async def user_from_refresh_token(token: str, origin: str) -> User | None:
+async def user_from_refresh_token(token: str, origin: str, **kwargs) -> User | None:
     # Assuming 'decoded' contains user information,
     # retrieve the user and return
     user_data = await user_data_from_token(token, origin)
@@ -203,9 +213,13 @@ async def user_from_refresh_token(token: str, origin: str) -> User | None:
 
         for login_session in user.login_sessions:
             if login_session.jti == user_data.jti:
+                user.current_session = login_session
                 return user
 
-    raise BaseHTTPException(status_code=HTTP_401_UNAUTHORIZED, error="unauthorized")
+    if kwargs.get("raise_exception", True):
+        raise BaseHTTPException(status_code=HTTP_401_UNAUTHORIZED, error="unauthorized")
+
+    return None
 
 
 def get_authorization_scheme_param(
@@ -273,7 +287,7 @@ async def jwt_access_security_user(request: Request) -> User | None:
 
 
 async def jwt_refresh_security(
-    request: Request, refresh_token: JWTRefresh = None
+    request: Request, refresh_token: JWTRefresh = None, raise_exception=True
 ) -> User | None:
     """Return the user associated with a token value."""
     origin = request.url.hostname
@@ -281,8 +295,26 @@ async def jwt_refresh_security(
     if refresh_token:
         return await user_from_refresh_token(refresh_token, origin)
 
+    try:
+        data = await request.json()
+    except ValueError:
+        data = {}
+
+    if data and "refresh_token" in data:
+        return await user_from_refresh_token(data["refresh_token"], origin)
+
     refresh = request.cookies.get("refresh_token")
     if refresh:
-        return await user_from_refresh_token(refresh, origin)
+        return await user_from_refresh_token(
+            refresh, origin, raise_exception=raise_exception
+        )
 
-    raise BaseHTTPException(status_code=HTTP_401_UNAUTHORIZED, error="unauthorized")
+    if raise_exception:
+        raise BaseHTTPException(status_code=HTTP_401_UNAUTHORIZED, error="unauthorized")
+    return None
+
+
+async def jwt_refresh_security_None(
+    request: Request, refresh_token: JWTRefresh = None
+) -> User | None:
+    return await jwt_refresh_security(request, refresh_token, raise_exception=False)

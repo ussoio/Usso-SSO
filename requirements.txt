@@ -3,6 +3,7 @@ python-dotenv
 debugpy
 # Pillow
 requests
+requests-oauthlib
 # beautifulsoup4
 
 requests

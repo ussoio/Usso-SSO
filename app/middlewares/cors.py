@@ -8,8 +8,11 @@ origins = {"http://localhost", "http://localhost:3000"}
 
 
 class DynamicCORSMiddleware(BaseHTTPMiddleware):
-    async def get_allowed_origins(self):
+    async def get_allowed_origins(self, origins=origins, **kwargs):
         websites = Website.list()
+        if kwargs.get("origin"):
+            origins.add(kwargs["origin"])
+            return origins
         return origins | {
             f"https://{website.origin}" async for website in websites.skip(0).limit(10)
         }
@@ -20,7 +23,7 @@ class DynamicCORSMiddleware(BaseHTTPMiddleware):
         request.headers.get("access-control-request-headers")
         headers = {}
         origin = f"https://{request.url.hostname}"
-        origins = await self.get_allowed_origins()
+        origins = await self.get_allowed_origins(origin=origin)
 
         # Dynamically check if the origin is allowed
         if origin in origins:

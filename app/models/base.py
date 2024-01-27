@@ -70,6 +70,8 @@ class BaseDBModel(BaseModel):
         # if item_str:
         #     return cls(**json.loads(item, object_hook=utility.json_deserializer))
         item = await cls.find_one(cls.uid == uid, cls.is_deleted == False)
+        if not item:
+            return None
         redis.set(
             redis_key,
             json.dumps(item.model_dump(), cls=utility.JSONSerializer),
@@ -106,6 +108,10 @@ class AuthMethod(str, Enum):
     phone_otp = "phone/otp"
     authenticator_app = "authenticator_app"
     email_link = "email/link"
+
+    @classmethod
+    def email_methods(cls) -> list["AuthMethod"]:
+        return [AuthMethod.google, AuthMethod.email_password, AuthMethod.email_link]
 
     def needs_validation(self) -> bool:
         return self in (
