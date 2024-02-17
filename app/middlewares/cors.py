@@ -1,8 +1,7 @@
 import fastapi
+from app.models.website import Website
 from fastapi.responses import PlainTextResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-
-from app.models.website import Website
 
 origins = {"http://localhost", "http://localhost:3000"}
 
@@ -20,8 +19,7 @@ class DynamicCORSMiddleware(BaseHTTPMiddleware):
 
         request.headers.get("access-control-request-headers")
 
-        if request.headers.get("origin"):
-            origin = request.headers.get("origin")
+        origin = request.headers.get("origin")
         allowed_origins = await self.get_allowed_origins(origin=origin)
 
         # Dynamically check if the origin is allowed

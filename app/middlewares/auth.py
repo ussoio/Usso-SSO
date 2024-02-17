@@ -1,5 +1,3 @@
-from fastapi import HTTPException, Request
-
 from app.models.base import AuthMethod
 from app.models.user import BasicAuthenticator
 from app.serializers.auth import (
@@ -10,6 +8,7 @@ from app.serializers.auth import (
     GoogleAuth,
     OTPAuth,
 )
+from fastapi import HTTPException, Request
 
 
 def create_basic_authenticator(

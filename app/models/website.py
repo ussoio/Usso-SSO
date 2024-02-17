@@ -1,18 +1,18 @@
+import hashlib
 import json
 from datetime import timedelta
 from typing import Annotated
 
 import dotenv
 import jwt
+from app.models import base
+from app.util import str_tools, utility
 from beanie import Document, Indexed
 from cryptography.hazmat.backends import default_backend as crypto_default_backend
 from cryptography.hazmat.primitives import serialization as crypto_serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from pydantic import BaseModel, root_validator, EmailStr
-
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
-from app.models import base
-from app.util import str_tools, utility
+from pydantic import BaseModel, EmailStr, root_validator
 from server.config import CONFIG
 from server.redis import redis
 
@@ -121,6 +121,7 @@ class Website(Document, base.BaseDBModel):
     user_uid: Annotated[str, Indexed(str)]
     config: WebsiteConfig = WebsiteConfig()
     secrets: WebsiteSecrets = WebsiteSecrets()
+    custom_claims: dict = {}
 
     # class Settings:
     #     use_cache = True
@@ -235,16 +236,38 @@ class Website(Document, base.BaseDBModel):
             pem_bytes, password=CONFIG.RSA_PASSWORD, backend=crypto_default_backend()
         )
 
+        if "data" in payload:
+            data = payload.pop("data")
+            payload.update(data)
+        
         if "token_type" not in payload:
             raise ValueError("token_type not in payload")
 
-        encoded = jwt.encode(payload, private_key, algorithm="RS256")
+        encoded = jwt.encode(
+            payload,
+            private_key,
+            algorithm="RS256",
+            headers={
+                "kid": self.generate_kid(),
+                "jwk_url": f"https://{self.origin}/website/jwks.json",
+            },
+        )
         return encoded
 
     def get_public_key(self) -> str:
         return crypto_serialization.load_ssh_public_key(
             self.secrets.rsa_pub, backend=crypto_default_backend()
         )
+
+    def generate_kid(self) -> str:
+        """Generates a Key ID (kid) for the JWKS."""
+        public_key = self.get_public_key()
+        der_public_key = public_key.public_bytes(
+            encoding=crypto_serialization.Encoding.DER,
+            format=crypto_serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        kid = hashlib.sha256(der_public_key).hexdigest()
+        return kid
 
     def get_private_key(self) -> str:
         return crypto_serialization.load_pem_private_key(

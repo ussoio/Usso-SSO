@@ -1,13 +1,15 @@
 """FastAPI JWT configuration."""
-import aiohttp
+
 import base64
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional, Set
+from typing import Any, Dict, Optional, Set, Tuple
+from urllib.parse import urlparse
 
+import aiohttp
 import jwt
 from app.exceptions import BaseHTTPException
 from app.models.base import AuthMethod
-from app.models.user import User, LoginSession
+from app.models.user import LoginSession, User
 from app.models.website import Website
 from app.serializers.jwt_auth import (
     AccessPayload,
@@ -45,11 +47,14 @@ async def get_token(user: User, website: Website, token_type: JWTMode, **kwargs)
         user_id=user.uid,
         exp=datetime.utcnow()
         + timedelta(
-            minutes=website.config.access_timeout
-            if token_type == JWTMode.ACCESS
-            else website.config.refresh_timeout
+            seconds=(
+                website.config.access_timeout
+                if token_type == JWTMode.ACCESS
+                else website.config.refresh_timeout
+            )
         ),
-        origin=website.origin,
+        # origin=website.origin,
+        # jwk_url=f'https://{website.origin}/website/jwks.json',
         token_type=token_type.value,
         email=email,
         phone=phone,
@@ -153,8 +158,8 @@ async def jwt_response(
                 value=refresh_token,
                 httponly=True,
                 max_age=website.config.refresh_timeout,
-                samesite="lax",
-                # samesite="none",
+                # samesite="lax",
+                samesite="none",
                 secure=True,
             )
 
@@ -211,10 +216,11 @@ async def user_from_refresh_token(token: str, origin: str, **kwargs) -> User | N
             user_data.user_id
         )  # Replace with your method to get a user by ID
 
-        for login_session in user.login_sessions:
-            if login_session.jti == user_data.jti:
-                user.current_session = login_session
-                return user
+        if user:
+            for login_session in user.login_sessions:
+                if login_session.jti == user_data.jti:
+                    user.current_session = login_session
+                    return user
 
     if kwargs.get("raise_exception", True):
         raise BaseHTTPException(status_code=HTTP_401_UNAUTHORIZED, error="unauthorized")
@@ -224,7 +230,7 @@ async def user_from_refresh_token(token: str, origin: str, **kwargs) -> User | N
 
 def get_authorization_scheme_param(
     authorization_header_value: Optional[str],
-) -> (str, str):
+) -> Tuple[str, str]:
     if not authorization_header_value:
         return "", ""
     scheme, _, param = authorization_header_value.partition(" ")
@@ -317,4 +323,7 @@ async def jwt_refresh_security(
 async def jwt_refresh_security_None(
     request: Request, refresh_token: JWTRefresh = None
 ) -> User | None:
-    return await jwt_refresh_security(request, refresh_token, raise_exception=False)
+    try:
+        return await jwt_refresh_security(request, refresh_token, raise_exception=False)
+    except BaseHTTPException:
+        return None

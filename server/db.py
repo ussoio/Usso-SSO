@@ -1,7 +1,6 @@
+from app.models import user, website
 from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
-
-from app.models import user, website
 
 from .config import CONFIG
 

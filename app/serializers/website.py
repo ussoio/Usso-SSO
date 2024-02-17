@@ -1,6 +1,5 @@
-from pydantic import BaseModel, Field
-
 from app.models import base
+from pydantic import BaseModel, Field
 
 
 class WebsiteSerializer(BaseModel):
@@ -40,6 +39,7 @@ class RSAJWK(BaseModel):
     alg: str = Field(..., description="Algorithm")
     n: str = Field(..., description="Modulus")
     e: str = Field(..., description="Exponent")
+    kid: str = Field(..., description="Key ID")
 
 
 class JWKS(BaseModel):

@@ -5,10 +5,9 @@ from datetime import datetime
 from enum import Enum
 from typing import Annotated, Optional
 
+from app.util import utility
 from beanie import Indexed
 from pydantic import BaseModel, Field, root_validator
-
-from app.util import utility
 from server.redis import redis
 
 

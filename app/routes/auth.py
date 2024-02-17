@@ -19,9 +19,10 @@ from app.serializers.auth import BaseAuth, ForgetPasswordData, OTPAuth
 from app.serializers.jwt_auth import AccessToken, JWTResponse
 from app.serializers.user import UserSerializer
 from fastapi import APIRouter, Body, Depends, Request, Response, Security
-from fastapi.responses import RedirectResponse, JSONResponse
-from requests_oauthlib import OAuth2Session
+from fastapi.responses import JSONResponse, RedirectResponse
 from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
+from requests_oauthlib import OAuth2Session
+from server.redis import redis
 from starlette.status import HTTP_201_CREATED
 
 router = APIRouter(prefix="/auth", tags=["Register"])
@@ -110,15 +111,22 @@ async def refresh(
 @router.post("/phone-otp-request")
 async def phone_otp_request(
     request: Request,
+    response: Response,
     phone: str = embed,
 ) -> JSONResponse:
     """Send OTP to phone using sms."""
     b_auth = create_basic_authenticator(request, OTPAuth(phone=phone))
     _, auth = await User.get_user_by_auth(b_auth)
-    otp = await auth.send_otp()
-    return JSONResponse(
-        {"message": f"{len(otp)}-digit otp sms has sent"}, status_code=200
-    )
+    if auth:
+        otp = await auth.send_otp()
+        return JSONResponse(
+            {"message": f"{len(otp)}-digit otp sms has sent"}, status_code=200
+        )
+
+    user, success = await User.register(b_auth)
+    response.status_code = HTTP_201_CREATED
+    token = await jwt_response(user, request, response, refresh=True)
+    return UserSerializer(token=token, **user.model_dump())
 
 
 @router.post("/login-otp")
@@ -276,7 +284,7 @@ async def login_token(
 
 
 @router.get("/google")
-async def google_login(request: Request):
+async def google_login(request: Request, callback: str | None = None):
     """Google login."""
     origin = request.url.hostname
     website = await Website.get_by_origin(origin)
@@ -286,6 +294,7 @@ async def google_login(request: Request):
     client_id = website.secrets.google_client_id
     client_secret = website.secrets.google_client_secret
     redirect_uri = f"https://{origin}/auth/google-callback"
+
     scopes = [
         "https://www.googleapis.com/auth/userinfo.email",
         "https://www.googleapis.com/auth/userinfo.profile",
@@ -299,6 +308,9 @@ async def google_login(request: Request):
         access_type="offline",
         prompt="select_account",
     )
+
+    if callback:
+        redis.set(f"google-callback:{state}", callback, ex=60 * 60 * 24 * 7)
 
     response = RedirectResponse(url=authorization_url)
 
@@ -346,6 +358,12 @@ async def google_login_callback(
     except Exception as e:
         raise BaseHTTPException(400, "error", str(e))
 
+    state = request.query_params.get("state")
+    callback = redis.get(f"google-callback:{state}")
+    if callback:
+        redis.delete(f"google-callback:{state}")
+        callback = callback.decode("utf-8")
+
     g_auth = BasicAuthenticator(
         interface=origin,
         auth_method=AuthMethod.google,
@@ -357,6 +375,11 @@ async def google_login_callback(
     if user:
         if logged_in_user:
             user = await logged_in_user.merge(user)
+
+        if callback:
+            response = RedirectResponse(url=callback)
+            token = await jwt_response(user, request, response, refresh=True)
+            return response
 
         # user.current_authenticator = auth
         token = await jwt_response(user, request, response, refresh=True)
@@ -374,25 +397,39 @@ async def google_login_callback(
             user = await logged_in_user.merge(user)
 
         gu_auth = await user.add_authenticator(g_auth)
+        gu_auth.data = user_data
 
         if auth.validated_at is None:
             auth.validated_at = datetime.utcnow()
 
         user.is_active = True
-        await user.save()
+        user.authenticators[-1].data = user_data
         user.current_authenticator = gu_auth
+        await user.save()
+
+        if callback:
+            response = RedirectResponse(url=callback)
+            token = await jwt_response(user, request, response, refresh=True)
+            return response
+
         token = await jwt_response(user, request, response, refresh=True)
         return UserSerializer(**user.model_dump(), token=token)
 
     if logged_in_user is None:
-        user = await User.register(g_auth)
+        user, created = await User.register(g_auth)
     else:
         user = logged_in_user
-        gu_auth = logged_in_user.add_authenticator(g_auth)
-        user.current_authenticator = gu_auth
 
-    user.current_authenticator.data = user_data
+    gu_auth = await user.add_authenticator(g_auth)
+    gu_auth.data = user_data
+    user.authenticators[-1].data = user_data
+    user.current_authenticator = gu_auth
     await user.save()
+
+    if callback:
+        response = RedirectResponse(url=callback)
+        token = await jwt_response(user, request, response, refresh=True)
+        return response
 
     token = await jwt_response(user, request, response, refresh=True)
     return UserSerializer(**user.model_dump(), token=token)
@@ -413,6 +450,9 @@ async def logout(
                 break
         await user.save()
 
+    response.delete_cookie("access_token")
+    response.delete_cookie("refresh_token")
+
     return JSONResponse({"message": f"{jti} session logged out"}, status_code=200)
 
 
@@ -429,6 +469,10 @@ async def logout(
 
     origin = request.url.hostname
     parent_domain = ".".join(origin.split(".")[1:])
+
+    if request.query_params.get("callback"):
+        response = RedirectResponse(url=request.query_params.get("callback"))
+
     response.delete_cookie(
         "access_token",
         domain=parent_domain,
@@ -437,5 +481,8 @@ async def logout(
         secure=True,
     )
     response.delete_cookie("refresh_token")
+
+    if request.query_params.get("callback"):
+        return response
 
     return {"message": "logged out"}

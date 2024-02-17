@@ -1,18 +1,18 @@
 """User models."""
-import base64
-import uuid
+
 import asyncio
+import base64
 import json
 import string
+import uuid
 from datetime import datetime, timedelta
 from typing import Any
-
-from beanie import Document, Link
-from pydantic import BaseModel, Field
 
 from app.models import base
 from app.models.website import Website
 from app.util import password, sms, str_tools, utility
+from beanie import Document, Link
+from pydantic import BaseModel, Field
 from server.redis import redis
 
 
@@ -296,14 +296,20 @@ class User(Document, base.BaseDBModel):
         cls,
         b_auth: BasicAuthenticator,
         **kwargs,
-    ) -> ("User", bool):
+    ) -> tuple["User", bool]:
         created = False
         user, _ = await cls.get_user_by_auth(b_auth, **kwargs)
         if user is None:
             user = cls()
             created = True
+            website = await Website.get_by_origin(b_auth.interface)
+            if website.custom_claims:
+                user.data = utility.fill_template(
+                    website.custom_claims, user.model_dump()
+                )
 
         user_auth = await user.add_authenticator(b_auth)
+
         # todo get data from authenticator
         # await user.save()
         user.current_authenticator = user_auth
@@ -359,9 +365,9 @@ class User(Document, base.BaseDBModel):
             b_auth = BasicAuthenticator(**b_auth.model_dump())
         user_auth = UserAuthenticator(
             **b_auth.model_dump(),
-            validated_at=None
-            if b_auth.auth_method.needs_validation()
-            else datetime.now(),
+            validated_at=(
+                None if b_auth.auth_method.needs_validation() else datetime.now()
+            ),
             hash=b_auth.auth_method.needs_secret(),
             max_age_minutes=b_auth.auth_method.max_age_minutes,
         )

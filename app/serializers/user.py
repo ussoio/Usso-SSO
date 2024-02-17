@@ -1,7 +1,8 @@
-from pydantic import BaseModel
 from typing import Any
+
 from app.serializers.auth import BaseAuth
 from app.serializers.jwt_auth import JWTResponse
+from pydantic import BaseModel
 
 
 class UserSerializer(BaseModel):

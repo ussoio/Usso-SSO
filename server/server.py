@@ -1,14 +1,13 @@
 from contextlib import asynccontextmanager
 
 import fastapi
+from app import exceptions
+from app.middlewares import cors
+from app.routes import auth, user, website
 from beanie import init_beanie
 from fastapi.responses import JSONResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from starlette.middleware.cors import CORSMiddleware
-
-from app import exceptions
-from app.middlewares import cors
-from app.routes import auth, user, website
 
 from . import config, db, redis
 
