@@ -72,6 +72,7 @@ def run_async_in_thread(func):
 
     return wrapper
 
+
 def fill_template(template: dict | list | str, data: dict):
     if isinstance(template, dict):
         # For dictionaries, recursively apply fill_template to each value

@@ -1,13 +1,7 @@
 from app.models.base import AuthMethod
 from app.models.user import BasicAuthenticator
-from app.serializers.auth import (
-    Auth,
-    AuthenticatorAuth,
-    BaseAuth,
-    EmailAuth,
-    GoogleAuth,
-    OTPAuth,
-)
+from app.serializers.auth import (Auth, AuthenticatorAuth, BaseAuth, EmailAuth,
+                                  GoogleAuth, OTPAuth)
 from fastapi import HTTPException, Request
 
 

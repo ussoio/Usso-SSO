@@ -8,8 +8,10 @@ import jwt
 from app.models import base
 from app.util import str_tools, utility
 from beanie import Document, Indexed
-from cryptography.hazmat.backends import default_backend as crypto_default_backend
-from cryptography.hazmat.primitives import serialization as crypto_serialization
+from cryptography.hazmat.backends import \
+    default_backend as crypto_default_backend
+from cryptography.hazmat.primitives import \
+    serialization as crypto_serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 from pydantic import BaseModel, EmailStr, root_validator
@@ -239,7 +241,7 @@ class Website(Document, base.BaseDBModel):
         if "data" in payload:
             data = payload.pop("data")
             payload.update(data)
-        
+
         if "token_type" not in payload:
             raise ValueError("token_type not in payload")
 

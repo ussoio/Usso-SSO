@@ -11,15 +11,9 @@ from app.exceptions import BaseHTTPException
 from app.models.base import AuthMethod
 from app.models.user import LoginSession, User
 from app.models.website import Website
-from app.serializers.jwt_auth import (
-    AccessPayload,
-    JWTMode,
-    JWTPayload,
-    JWTRefresh,
-    JWTResponse,
-    RefreshPayload,
-    UserData,
-)
+from app.serializers.jwt_auth import (AccessPayload, JWTMode, JWTPayload,
+                                      JWTRefresh, JWTResponse, RefreshPayload,
+                                      UserData)
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from fastapi import Body, Request, Response

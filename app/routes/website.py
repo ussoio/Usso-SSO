@@ -8,7 +8,8 @@ from app.models.website import Website
 from app.serializers.jwt_auth import UserData
 from app.serializers.user import UserSerializer, UserUpdate
 from app.serializers.website import JWKS, RSAJWK
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, Security
+from fastapi import (APIRouter, Depends, HTTPException, Request, Response,
+                     Security)
 
 router = APIRouter(prefix="/website", tags=["Website"])
 

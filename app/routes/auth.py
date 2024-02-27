@@ -5,13 +5,10 @@ from functools import partial
 
 from app.exceptions import BaseHTTPException
 from app.middlewares.auth import create_basic_authenticator
-from app.middlewares.jwt_auth import (
-    get_email_secret_data_from_token,
-    jwt_access_security_user,
-    jwt_refresh_security,
-    jwt_refresh_security_None,
-    jwt_response,
-)
+from app.middlewares.jwt_auth import (get_email_secret_data_from_token,
+                                      jwt_access_security_user,
+                                      jwt_refresh_security,
+                                      jwt_refresh_security_None, jwt_response)
 from app.models.base import AuthMethod
 from app.models.user import BasicAuthenticator, User, UserAuthenticator
 from app.models.website import Website
