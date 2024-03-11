@@ -8,10 +8,8 @@ import jwt
 from app.models import base
 from app.util import str_tools, utility
 from beanie import Document, Indexed
-from cryptography.hazmat.backends import \
-    default_backend as crypto_default_backend
-from cryptography.hazmat.primitives import \
-    serialization as crypto_serialization
+from cryptography.hazmat.backends import default_backend as crypto_default_backend
+from cryptography.hazmat.primitives import serialization as crypto_serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 from pydantic import BaseModel, EmailStr, root_validator
@@ -132,7 +130,8 @@ class Website(Document, base.BaseDBModel):
 
     @root_validator(pre=True)
     def set_defaults(cls, values):
-        values["api_key"] = f"sso-ak-{str_tools.generate_random_chars(32)}"
+        if not values.get("api_key"):
+            values["api_key"] = f"sso-ak-{str_tools.generate_random_chars(32)}"
         return values
 
     @classmethod

@@ -142,14 +142,16 @@ class UserAuthenticator(BasicAuthenticator):
 
         return temp_ua
 
-    async def send_otp(self, length=4) -> str:
+    async def send_otp(self, length=4, text="کد ورود به رنتامون:\nCode: {code}", timeout=5*60) -> str:
         if self.auth_method != base.AuthMethod.phone_otp:
             return
 
         phone = self.representor
         self.secret = str_tools.generate_random_chars(length, "1234567890")
-        await sms.send_sms_async(phone, f"رمز یک‌بار مصرف: {self.secret}")
-        redis.set(f"OTP:{self.interface}:{phone}:{self.secret}", self.secret, ex=5 * 60)
+        await sms.send_sms_async(phone, text.format(code=self.secret))
+        redis.set(
+            f"OTP:{self.interface}:{phone}:{self.secret}", self.secret, ex=timeout
+        )
         return self.secret
 
     async def authenticate(self, secret: str, **kwargs) -> bool:

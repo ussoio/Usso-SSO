@@ -14,7 +14,7 @@ services:
     #   redis:
     #     condition: service_healthy
     ports:
-      - 3013:3000
+      - 3113:3000
     networks:
       - traefik-net
       - data
@@ -68,10 +68,10 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${PROJECT_NAME}-mongo.entrypoints=web"
-      - "traefik.http.routers.${PROJECT_NAME}-mongo.rule=Host(`mongo.${DOMAIN}`)"
+      - "traefik.http.routers.${PROJECT_NAME}-mongo.rule=Host(`mongo-${DOMAIN}`)"
       # - "traefik.http.routers.${PROJECT_NAME}-mongo.middlewares=https-redirect"
       - "traefik.http.routers.${PROJECT_NAME}-mongo-secure.entrypoints=websecure"
-      - "traefik.http.routers.${PROJECT_NAME}-mongo-secure.rule=Host(`mongo.${DOMAIN}`)"
+      - "traefik.http.routers.${PROJECT_NAME}-mongo-secure.rule=Host(`mongo-${DOMAIN}`)"
       - "traefik.http.routers.${PROJECT_NAME}-mongo-secure.tls=true"
       - "traefik.http.routers.${PROJECT_NAME}-mongo-secure.tls.certresolver=letsencrypt"
       - "traefik.http.services.${PROJECT_NAME}-mongo.loadbalancer.server.port=8081"

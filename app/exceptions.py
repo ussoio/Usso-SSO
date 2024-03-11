@@ -14,6 +14,7 @@ error_messages = {
     "website_not_found": "Website not found",
     "oath_failed": "Oauth authentication failed",
     "no_email": "No email provided",
+    "forbidden": "Forbidden",
 }
 
 

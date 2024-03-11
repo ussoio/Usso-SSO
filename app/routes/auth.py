@@ -5,10 +5,13 @@ from functools import partial
 
 from app.exceptions import BaseHTTPException
 from app.middlewares.auth import create_basic_authenticator
-from app.middlewares.jwt_auth import (get_email_secret_data_from_token,
-                                      jwt_access_security_user,
-                                      jwt_refresh_security,
-                                      jwt_refresh_security_None, jwt_response)
+from app.middlewares.jwt_auth import (
+    get_email_secret_data_from_token,
+    jwt_access_security_user,
+    jwt_refresh_security,
+    jwt_refresh_security_None,
+    jwt_response,
+)
 from app.models.base import AuthMethod
 from app.models.user import BasicAuthenticator, User, UserAuthenticator
 from app.models.website import Website
@@ -112,10 +115,15 @@ async def phone_otp_request(
     phone: str = embed,
 ) -> JSONResponse:
     """Send OTP to phone using sms."""
+    website = await Website.get_by_origin(request.url.hostname)
     b_auth = create_basic_authenticator(request, OTPAuth(phone=phone))
     _, auth = await User.get_user_by_auth(b_auth)
     if auth:
-        otp = await auth.send_otp()
+        otp = await auth.send_otp(
+            length=website.config.otp_length,
+            text=website.config.otp_message,
+            timeout=website.config.otp_timeout,
+        )
         return JSONResponse(
             {"message": f"{len(otp)}-digit otp sms has sent"}, status_code=200
         )

@@ -286,6 +286,15 @@ async def jwt_access_security_user(request: Request) -> User | None:
     raise BaseHTTPException(status_code=HTTP_401_UNAUTHORIZED, error="unauthorized")
 
 
+async def jwt_access_security_user_None(request: Request) -> User | None:
+    try:
+        return await jwt_access_security_user(
+            request
+        )
+    except BaseHTTPException:
+        return None
+
+
 async def jwt_refresh_security(
     request: Request, refresh_token: JWTRefresh = None, raise_exception=True
 ) -> User | None:
