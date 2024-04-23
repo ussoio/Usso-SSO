@@ -143,7 +143,7 @@ class Website(Document, base.BaseDBModel):
             return cls(**json.loads(website, object_hook=utility.json_deserializer))
         website = await cls.find_one(cls.origin == origin)
         if not website:
-            website = await cls(origin=origin, user_id="123").save()
+            website = await cls(origin=origin, user_uid="123").save()
             # return website
 
         redis.set(

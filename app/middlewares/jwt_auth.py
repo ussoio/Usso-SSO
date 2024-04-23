@@ -156,6 +156,16 @@ async def jwt_response(
                 samesite="none",
                 secure=True,
             )
+            response.set_cookie(
+                key="usso_logged_in",
+                value="true",
+                # httponly=True,
+                max_age=website.config.refresh_timeout,
+                domain=parent_domain,
+                # samesite="lax",
+                samesite="none",
+                secure=True,
+            )
 
     return JWTResponse(
         **{

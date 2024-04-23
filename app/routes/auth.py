@@ -5,10 +5,13 @@ from functools import partial
 
 from app.exceptions import BaseHTTPException
 from app.middlewares.auth import create_basic_authenticator
-from app.middlewares.jwt_auth import (get_email_secret_data_from_token,
-                                      jwt_access_security_user,
-                                      jwt_refresh_security,
-                                      jwt_refresh_security_None, jwt_response)
+from app.middlewares.jwt_auth import (
+    get_email_secret_data_from_token,
+    jwt_access_security_user,
+    jwt_refresh_security,
+    jwt_refresh_security_None,
+    jwt_response,
+)
 from app.models.base import AuthMethod
 from app.models.user import BasicAuthenticator, User, UserAuthenticator
 from app.models.website import Website
@@ -449,6 +452,7 @@ async def logout(
 
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token")
+    response.delete_cookie("usso_logged_in")
 
     return JSONResponse({"message": f"{jti} session logged out"}, status_code=200)
 
