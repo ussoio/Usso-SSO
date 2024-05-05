@@ -6,7 +6,7 @@ import json
 import string
 import uuid
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Tuple
 
 from app.models import base
 from app.models.website import Website
@@ -142,14 +142,18 @@ class UserAuthenticator(BasicAuthenticator):
 
         return temp_ua
 
-    async def send_otp(self, length=4) -> str:
+    async def send_otp(
+        self, length=4, text=f"کد ورود به رنتامون:\nCode: {{otp}}", timeout=5 * 60
+    ) -> str:
         if self.auth_method != base.AuthMethod.phone_otp:
             return
 
         phone = self.representor
         self.secret = str_tools.generate_random_chars(length, "1234567890")
-        await sms.send_sms_async(phone, f"رمز یک‌بار مصرف: {self.secret}")
-        redis.set(f"OTP:{self.interface}:{phone}:{self.secret}", self.secret, ex=5 * 60)
+        await sms.send_sms_async(phone, text.format(otp=self.secret))
+        redis.set(
+            f"OTP:{self.interface}:{phone}:{self.secret}", self.secret, ex=timeout
+        )
         return self.secret
 
     async def authenticate(self, secret: str, **kwargs) -> bool:
@@ -239,7 +243,7 @@ class User(Document, base.BaseDBModel):
         cls,
         b_auth: BasicAuthenticator,
         **kwargs,
-    ) -> ("User", UserAuthenticator):
+    ) -> Tuple["User", UserAuthenticator]:
         user = await cls.find_one(
             cls.authenticators.interface == b_auth.interface,
             cls.authenticators.representor == b_auth.representor,

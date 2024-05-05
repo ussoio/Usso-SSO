@@ -115,10 +115,16 @@ async def phone_otp_request(
     phone: str = embed,
 ) -> JSONResponse:
     """Send OTP to phone using sms."""
+    website = await Website.get_by_origin(request.url.hostname)
     b_auth = create_basic_authenticator(request, OTPAuth(phone=phone))
     _, auth = await User.get_user_by_auth(b_auth)
     if auth:
-        otp = await auth.send_otp()
+        # otp = await auth.send_otp()
+        otp = await auth.send_otp(
+            length=website.config.otp_length,
+            text=website.config.otp_message,
+            timeout=website.config.otp_timeout,
+        )
         return JSONResponse(
             {"message": f"{len(otp)}-digit otp sms has sent"}, status_code=200
         )

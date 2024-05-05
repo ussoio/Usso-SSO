@@ -132,7 +132,8 @@ class Website(Document, base.BaseDBModel):
 
     @root_validator(pre=True)
     def set_defaults(cls, values):
-        values["api_key"] = f"sso-ak-{str_tools.generate_random_chars(32)}"
+        if not values.get("api_key"):
+            values["api_key"] = f"sso-ak-{str_tools.generate_random_chars(32)}"
         return values
 
     @classmethod

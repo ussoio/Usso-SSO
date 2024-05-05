@@ -2,12 +2,18 @@
 
 import base64
 
+from server.redis import redis
 from app.exceptions import BaseHTTPException
-from app.middlewares.jwt_auth import jwt_access_security_user
+from app.middlewares.jwt_auth import (
+    jwt_access_security_user,
+    jwt_access_security_user_None,
+)
 from app.models.website import Website
 from app.serializers.jwt_auth import UserData
 from app.serializers.user import UserSerializer, UserUpdate
 from app.serializers.website import JWKS, RSAJWK
+from app.models.website import Website, WebsiteConfig
+from app.models.user import User
 from fastapi import (APIRouter, Depends, HTTPException, Request, Response,
                      Security)
 
@@ -40,6 +46,62 @@ async def get_jwks(request: Request) -> JWKS:
 
     return jwks
 
+@router.get("/config")
+async def get_config(request: Request):  # type: ignore[no-untyped-def]
+    """Return the current user."""
+    user: User = await jwt_access_security_user_None(request=request)  # type: ignore[no-untyped-def]
+    website = await Website.get_by_origin(request.url.hostname)
+    if user and user.uid == website.user_uid:
+        return website.config
+
+    if request.headers.get("x-api-key"):
+        api_key = request.headers.get("x-api-key")
+        w = await Website.find_one(Website.api_key == api_key)
+        if w and w.uid == website.uid:
+            return w.config
+    raise BaseHTTPException(403, "forbidden")
+
+
+@router.patch("/config")
+async def get_config(request: Request, config: dict):  # type: ignore[no-untyped-def]
+    """Return the current user."""
+    user: User = await jwt_access_security_user_None(request=request)  # type: ignore[no-untyped-def]
+    website = await Website.get_by_origin(request.url.hostname)
+    if user and user.uid == website.user_uid:
+        w_config = website.config.model_dump()
+        w_config.update(config)
+        website.config = WebsiteConfig(**w_config)
+        await website.save()
+        redis.delete(f"Website:{request.url.hostname}")
+        return website.config
+
+    if request.headers.get("x-api-key"):
+        api_key = request.headers.get("x-api-key")
+        w = await Website.find_one(Website.api_key == api_key)
+        if w and w.uid == website.uid:
+            w_config = website.config.model_dump()
+            w_config.update(config)
+            w.config = WebsiteConfig(**w_config)
+            await w.save()
+            redis.delete(f"Website:{request.url.hostname}")
+            return w.config
+
+    raise BaseHTTPException(403, "forbidden")
+
+@router.get("/otp")
+async def get_user(request: Request, phone: str):  # type: ignore[no-untyped-def]
+    user: User = await jwt_access_security_user_None(request=request)  # type: ignore[no-untyped-def]
+    website = await Website.get_by_origin(request.url.hostname)
+    api_key = request.headers.get("x-api-key")
+    redis_key_query = f"OTP:{request.url.hostname}:{phone}:*"
+    redis_results = redis.keys(redis_key_query)
+    if user and user.uid == website.user_uid:
+        return {"otp": redis_results}
+    if api_key:
+        w = await Website.find_one(Website.api_key == api_key)
+        if w and w.uid == website.uid:
+            return [redis.get(key) for key in redis_results]
+    raise BaseHTTPException(403, "forbidden")
 
 # @router.get("", response_model=UserSerializer)
 # async def get_user(user: User = Security(jwt_access_security_user)):  # type: ignore[no-untyped-def]
