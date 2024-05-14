@@ -13,8 +13,10 @@ error_messages = {
     "invalid_signature": "Invalid signature",
     "website_not_found": "Website not found",
     "oath_failed": "Oauth authentication failed",
-    "no_email": "No email provided",
+    "no_edmail": "No email provided",
     "forbidden": "Forbidden",
+    "user_not_found": "Requested user not found",
+    "otp_not_found": "OTP not found",
 }
 
 
@@ -24,5 +26,5 @@ class BaseHTTPException(Exception):
         self.error = error
         self.message = message
         if message is None:
-            self.message = error_messages[error]
+            self.message = error_messages.get(error, error)
         super().__init__(message)

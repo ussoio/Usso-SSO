@@ -138,7 +138,7 @@ async def jwt_response(
     if await answer_jwt_in_cookie(request):
         parent_domain = website.origin[website.origin.find(".") :]
         response.set_cookie(
-            key="access_token",
+            key="usso_access_token",
             value=access_token,
             httponly=True,
             max_age=website.config.access_timeout,
@@ -146,9 +146,19 @@ async def jwt_response(
             samesite="none",
             secure=True,
         )
+        response.set_cookie(
+            key="usso_access_available",
+            value="true",
+            # httponly=True,
+            max_age=website.config.access_timeout,
+            domain=parent_domain,
+            # samesite="lax",
+            samesite="none",
+            secure=True,
+        )
         if refresh:
             response.set_cookie(
-                key="refresh_token",
+                key="usso_refresh_token",
                 value=refresh_token,
                 httponly=True,
                 max_age=website.config.refresh_timeout,
@@ -157,7 +167,7 @@ async def jwt_response(
                 secure=True,
             )
             response.set_cookie(
-                key="usso_logged_in",
+                key="usso_refresh_available",
                 value="true",
                 # httponly=True,
                 max_age=website.config.refresh_timeout,
@@ -248,8 +258,8 @@ def token_from_request(request: Request) -> str:
         if scheme.lower() == "bearer":
             return credentials
 
-    access = request.cookies.get("access_token")
-    refresh = request.cookies.get("refresh_token")
+    access = request.cookies.get("usso_access_token")
+    refresh = request.cookies.get("usso_refresh_token")
 
     if refresh:
         return refresh
@@ -271,7 +281,7 @@ async def jwt_access_security(request: Request) -> UserData | None:
             token = credentials
             return await user_data_from_token(token, origin)
 
-    cookie_token = request.cookies.get("access_token")
+    cookie_token = request.cookies.get("usso_access_token")
     if cookie_token:
         return await user_data_from_token(cookie_token, origin)
 
@@ -289,7 +299,7 @@ async def jwt_access_security_user(request: Request) -> User | None:
             token = credentials
             return await user_from_token(token, origin)
 
-    cookie_token = request.cookies.get("access_token")
+    cookie_token = request.cookies.get("usso_access_token")
     if cookie_token:
         return await user_from_token(cookie_token, origin)
 
@@ -322,7 +332,7 @@ async def jwt_refresh_security(
     if data and "refresh_token" in data:
         return await user_from_refresh_token(data["refresh_token"], origin)
 
-    refresh = request.cookies.get("refresh_token")
+    refresh = request.cookies.get("usso_refresh_token")
     if refresh:
         return await user_from_refresh_token(
             refresh, origin, raise_exception=raise_exception

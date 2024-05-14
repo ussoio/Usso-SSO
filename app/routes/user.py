@@ -16,7 +16,10 @@ async def get_user(user: User = Security(jwt_access_security_user)):  # type: ig
 
 
 @router.patch("", response_model=UserSerializer)
-async def update_user(update: UserUpdate, user: User = Security(jwt_access_security_user)):  # type: ignore[no-untyped-def]
+async def update_user(
+    update: UserUpdate,
+    user: User = Security(jwt_access_security_user),
+):
     """Update allowed user fields."""
     user.username = update.username
     await user.save()

@@ -5,7 +5,7 @@ import base64
 import json
 import string
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Tuple
 
 from app.models import base
@@ -26,7 +26,7 @@ class BasicAuthenticator(base.BaseDBModel):
 class UserAuthenticator(BasicAuthenticator):
     data: dict[str, Any] = {}
     validated_at: datetime | None = None
-    last_activity: datetime = datetime.utcnow()
+    last_activity: datetime = datetime.now(timezone.utc)
     max_age_minutes: int | None = None
 
     def __init__(self, **kwargs):
@@ -41,8 +41,8 @@ class UserAuthenticator(BasicAuthenticator):
         super().__init__(**kwargs)
 
     async def __make_valid(self):
-        self.validated_at = datetime.utcnow()
-        self.last_activity = datetime.utcnow()
+        self.validated_at = datetime.now(timezone.utc)
+        self.last_activity = datetime.now(timezone.utc)
         # await self.update()
 
     async def validate(self, secret: str, **kwargs) -> bool:
@@ -180,9 +180,9 @@ class UserAuthenticator(BasicAuthenticator):
             success = False
 
         if success:
-            self.last_activity = datetime.utcnow()
+            self.last_activity = datetime.now(timezone.utc)
             if self.validated_at is None and self.auth_method.valid_by_login():
-                self.validated_at = datetime.utcnow()
+                self.validated_at = datetime.now(timezone.utc)
 
         return success
 
@@ -191,7 +191,7 @@ class LoginSession(BaseModel):
     jti: str
     user_agent: str
     auth_method: base.AuthMethod
-    login_at: datetime = datetime.utcnow()
+    login_at: datetime = datetime.now(timezone.utc)
     max_age_minutes: int | None = None
     ip: str
     location: str | None = None
@@ -202,16 +202,17 @@ class LoginSession(BaseModel):
 
     @property
     def is_expired(self) -> bool:
-        return self.expire_at < datetime.utcnow()
+        return self.expire_at < datetime.now(timezone.utc)
 
 
 class User(Document, base.BaseDBModel):
     name: str | None = None
     username: str | None = None
+    website_uid: str | None = None
     authenticators: list[UserAuthenticator] = []
     current_authenticator: UserAuthenticator | None = Field(default=None, exclude=True)
     current_session: LoginSession | None = Field(default=None, exclude=True)
-    last_activity: datetime = datetime.utcnow()
+    last_activity: datetime = datetime.now(timezone.utc)
     is_active: bool = False
     login_sessions: list[LoginSession] = []
     data: dict[str, Any] = {}
@@ -268,7 +269,7 @@ class User(Document, base.BaseDBModel):
                     return user, auth
                 if (
                     auth.last_activity + timedelta(minutes=auth.max_age_minutes)
-                    > datetime.utcnow()
+                    > datetime.now(timezone.utc)
                 ):
                     return user, auth
 
@@ -290,7 +291,7 @@ class User(Document, base.BaseDBModel):
         if auth.auth_method.valid_by_login():
             user.is_active = True
 
-        user.last_activity = datetime.utcnow()
+        user.last_activity = datetime.now(timezone.utc)
         await user.save()
         user.current_authenticator = auth
         return user
@@ -337,7 +338,7 @@ class User(Document, base.BaseDBModel):
                 if auth.max_age_minutes is not None:
                     if (
                         auth.last_activity + timedelta(minutes=auth.max_age_minutes)
-                        < datetime.utcnow()
+                        < datetime.now(timezone.utc)
                     ):
                         temp_ua = await auth.send_validation()
                         if temp_ua is not None:
@@ -359,7 +360,7 @@ class User(Document, base.BaseDBModel):
                     return None
 
                 if await auth.validate(b_auth.secret):
-                    self.last_activity = datetime.utcnow()
+                    self.last_activity = datetime.now(timezone.utc)
                     await self.save()
                     return auth
 
@@ -407,7 +408,7 @@ class User(Document, base.BaseDBModel):
         await other.save()
 
         self.history = self.history + history
-        self.last_activity = datetime.utcnow()
+        self.last_activity = datetime.now(timezone.utc)
         await self.save()
         return self
 

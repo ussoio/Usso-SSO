@@ -107,6 +107,9 @@ class AuthMethod(str, Enum):
     phone_otp = "phone/otp"
     authenticator_app = "authenticator_app"
     email_link = "email/link"
+    oauth2 = "oauth2"
+    telegram = "telegram"
+    other = "other"
 
     @classmethod
     def email_methods(cls) -> list["AuthMethod"]:
@@ -131,6 +134,9 @@ class AuthMethod(str, Enum):
             AuthMethod.phone_otp: 5,
             AuthMethod.authenticator_app: None,
             AuthMethod.email_link: 24 * 60,
+            AuthMethod.telegram: None,
+            AuthMethod.oauth2: None,
+            AuthMethod.other: None,
         }[self]
 
     def needs_secret(self) -> bool:
