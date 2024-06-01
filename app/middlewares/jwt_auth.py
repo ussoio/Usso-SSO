@@ -2,8 +2,7 @@
 
 import base64
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional, Set, Tuple
-from urllib.parse import urlparse
+from typing import Optional, Tuple
 
 import aiohttp
 import jwt
@@ -11,14 +10,14 @@ from app.exceptions import BaseHTTPException
 from app.models.base import AuthMethod
 from app.models.user import LoginSession, User
 from app.models.website import Website
-from app.serializers.jwt_auth import (AccessPayload, JWTMode, JWTPayload,
-                                      JWTRefresh, JWTResponse, RefreshPayload,
-                                      UserData)
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization
-from fastapi import Body, Request, Response
-from fastapi.security import APIKeyCookie, HTTPBearer
-from server.config import CONFIG
+from app.serializers.jwt_auth import (
+    JWTMode,
+    JWTPayload,
+    JWTRefresh,
+    JWTResponse,
+    UserData,
+)
+from fastapi import Request, Response
 from starlette.status import HTTP_401_UNAUTHORIZED
 
 # from fastapi_jwt import JwtAuthorizationCredentials, JwtAccessBearer, JwtRefreshBearer
@@ -308,9 +307,7 @@ async def jwt_access_security_user(request: Request) -> User | None:
 
 async def jwt_access_security_user_None(request: Request) -> User | None:
     try:
-        return await jwt_access_security_user(
-            request
-        )
+        return await jwt_access_security_user(request)
     except BaseHTTPException:
         return None
 
@@ -322,7 +319,7 @@ async def jwt_refresh_security(
     origin = request.url.hostname
 
     if refresh_token:
-        return await user_from_refresh_token(refresh_token, origin)
+        return await user_from_refresh_token(refresh_token.refresh_token, origin)
 
     try:
         data = await request.json()

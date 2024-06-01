@@ -19,10 +19,10 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${PROJECT_NAME}.entrypoints=web"
-      - "traefik.http.routers.${PROJECT_NAME}.rule=Host(`${DOMAIN}`, `${DOMAIN2}`, `${DOMAIN3}`, `${DOMAIN4}`)"
+      - "traefik.http.routers.${PROJECT_NAME}.rule=Host(${DOMAINS})"
       # - "traefik.http.routers.${PROJECT_NAME}.middlewares=https-redirect"
       - "traefik.http.routers.${PROJECT_NAME}-secure.entrypoints=websecure"
-      - "traefik.http.routers.${PROJECT_NAME}-secure.rule=Host(`${DOMAIN}`, `${DOMAIN2}`, `${DOMAIN3}`, `${DOMAIN4}`)"
+      - "traefik.http.routers.${PROJECT_NAME}-secure.rule=Host(${DOMAINS})"
       - "traefik.http.routers.${PROJECT_NAME}-secure.tls=true"
       - "traefik.http.routers.${PROJECT_NAME}-secure.tls.certresolver=letsencrypt"
       - "traefik.http.services.${PROJECT_NAME}.loadbalancer.server.port=8000"

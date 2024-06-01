@@ -17,6 +17,7 @@ error_messages = {
     "forbidden": "Forbidden",
     "user_not_found": "Requested user not found",
     "otp_not_found": "OTP not found",
+    "credential_exists": "Credential already exists",
 }
 
 

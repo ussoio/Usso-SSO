@@ -5,6 +5,8 @@ from server.server import app
 if __name__ == "__main__":
     import uvicorn
 
+    app
+
     module = Path(__file__).stem
     uvicorn.run(
         f"{module}:app",

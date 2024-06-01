@@ -4,12 +4,9 @@ import fastapi
 from app import exceptions
 from app.middlewares import cors
 from app.routes import auth, user, website
-from beanie import init_beanie
 from fastapi.responses import JSONResponse
-from motor.motor_asyncio import AsyncIOMotorClient
-from starlette.middleware.cors import CORSMiddleware
 
-from . import config, db, redis
+from . import db, redis
 
 with open("DESCRIPTION.md", "r") as f:
     DESCRIPTION = f.read()

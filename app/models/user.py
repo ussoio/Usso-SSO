@@ -2,8 +2,6 @@
 
 import asyncio
 import base64
-import json
-import string
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Tuple
@@ -11,7 +9,7 @@ from typing import Any, Tuple
 from app.models import base
 from app.models.website import Website
 from app.util import password, sms, str_tools, utility
-from beanie import Document, Link
+from beanie import Document
 from pydantic import BaseModel, Field
 from server.redis import redis
 
@@ -267,10 +265,9 @@ class User(Document, base.BaseDBModel):
                 # to check auth.max_age_minutes and send valid meessage for user
                 if auth.max_age_minutes is None:
                     return user, auth
-                if (
-                    auth.last_activity + timedelta(minutes=auth.max_age_minutes)
-                    > datetime.now(timezone.utc)
-                ):
+                if auth.last_activity + timedelta(
+                    minutes=auth.max_age_minutes
+                ) > datetime.now(timezone.utc):
                     return user, auth
 
         return None, None
@@ -336,10 +333,9 @@ class User(Document, base.BaseDBModel):
                 and auth.interface == b_auth.interface
             ):
                 if auth.max_age_minutes is not None:
-                    if (
-                        auth.last_activity + timedelta(minutes=auth.max_age_minutes)
-                        < datetime.now(timezone.utc)
-                    ):
+                    if auth.last_activity + timedelta(
+                        minutes=auth.max_age_minutes
+                    ) < datetime.now(timezone.utc):
                         temp_ua = await auth.send_validation()
                         if temp_ua is not None:
                             self.authenticators[i] = temp_ua

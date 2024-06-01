@@ -1,4 +1,3 @@
-from app.exceptions import BaseHTTPException
 from app.models.base import AuthMethod
 from app.util import password, str_tools
 from pydantic import BaseModel, EmailStr, validator

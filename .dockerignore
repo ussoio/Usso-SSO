@@ -1,6 +1,8 @@
 # Git
 .git
 .gitignore
+.gitattributes
+
 
 # CI
 .codeclimate.yml
@@ -11,16 +13,11 @@
 docker-compose.yml
 Dockerfile
 .docker
+.dockerignore
 
 # Byte-compiled / optimized / DLL files
-__pycache__/
-*/__pycache__/
-*/*/__pycache__/
-*/*/*/__pycache__/
-*.py[cod]
-*/*.py[cod]
-*/*/*.py[cod]
-*/*/*/*.py[cod]
+**/__pycache__/
+**/*.py[cod]
 
 # C extensions
 *.so
@@ -65,7 +62,13 @@ coverage.xml
 *.pot
 
 # Django stuff:
+logs/
 *.log
+
+# Data
+*.db
+*.sqlite3
+*.data
 
 # Sphinx documentation
 docs/_build/
@@ -74,28 +77,19 @@ docs/_build/
 target/
 
 # Virtual environment
-.env/
+.env
 .venv/
 venv/
 
 # PyCharm
 .idea
-.vscode
 
 # Python mode for VIM
 .ropeproject
-*/.ropeproject
-*/*/.ropeproject
-*/*/*/.ropeproject
+**/.ropeproject
 
 # Vim swap files
-*.swp
-*/*.swp
-*/*/*.swp
-*/*/*/*.swp
+**/*.swp
 
-# data files
-*.data
-*/*.data
-*/*/*.data
-*/*/*/*.data
+# VS Code
+.vscode/

@@ -1,14 +1,11 @@
 import asyncio
 import base64
-import binascii
 import datetime
 import json
 import random
 import string
 import threading
 from functools import wraps
-
-import aiohttp
 
 
 def generate_random_chars(length=6, characters=string.ascii_letters + string.digits):

@@ -1,22 +1,17 @@
 """Website router."""
 
-import logging
 import base64
 
-from server.redis import redis
 from app.exceptions import BaseHTTPException
-from app.middlewares.jwt_auth import (
-    jwt_access_security_user,
-    jwt_access_security_user_None,
-)
-from app.models.website import Website
-from app.serializers.jwt_auth import UserData
-from app.serializers.user import UserSerializer, UserUpdate
+from app.middlewares.jwt_auth import jwt_access_security_user_None
+from app.models.user import BasicAuthenticator, User
+from app.models.website import Website, WebsiteConfig
 from app.serializers.website import JWKS, RSAJWK
 from app.serializers.website_user import AuthenticatorDTO
-from app.models.website import Website, WebsiteConfig
-from app.models.user import User, BasicAuthenticator
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, Security
+from fastapi import APIRouter, Request, Response
+from server.redis import redis
+
+from .auth import user_registration
 
 router = APIRouter(prefix="/website", tags=["Website"])
 
@@ -36,8 +31,9 @@ async def get_website(request: Request):
 
 
 @router.get("/jwks.json", response_model=JWKS)
-async def get_jwks(request: Request) -> JWKS:
-    origin = request.url.hostname
+async def get_jwks(request: Request, origin: str | None = None) -> JWKS:
+    if origin is None:
+        origin = request.url.hostname
     website = await Website.get_by_origin(origin)
     if website is None:
         raise BaseHTTPException(404, "website_not_found")
@@ -80,8 +76,8 @@ async def update_config(request: Request, config: dict):
 
 
 @router.get("/otp")
-async def get_user(request: Request, phone: str|None):  # type: ignore[no-untyped-def]
-    website = await get_website(request)
+async def get_otp(request: Request, phone: str | None):
+    await get_website(request)
 
     redis_key_query = f"OTP:{request.url.hostname}:{phone}:*"
     redis_results = redis.keys(redis_key_query)
@@ -92,28 +88,43 @@ async def get_user(request: Request, phone: str|None):  # type: ignore[no-untype
 
 
 @router.get("/users")
-async def get_users(request: Request, skip: int = 0, limit: int = 10):
+async def get_users(request: Request, skip: int = 0, limit: int = 1000):
     website = await get_website(request)
 
     skip = max(0, skip)
-    limit = max(1, min(limit, 100))
-    users = (
-        User.find_all(User.authenticators.interface == website.origin)
-        .skip(skip)
-        .limit(limit)
-    )
-    return [u.model_dump() async for u in users]
+    limit = max(1, min(limit, 1000))
+    users = await User.find(
+        {"authenticators": {"$elemMatch": {"interface": website.origin}}}
+    ).to_list()
+
+    return users
 
 
 @router.get("/users/credentials")
-async def get_users(request: Request, authenticator: AuthenticatorDTO):
+async def get_by_credentials(request: Request, authenticator: AuthenticatorDTO):
     website = await get_website(request)
-    credential = BasicAuthenticator(interface=website.origin, **authenticator.model_dump())
-    user = await User.get_user_by_auth(credential)
+    credential = BasicAuthenticator(
+        interface=website.origin, **authenticator.model_dump()
+    )
+    user, _ = await User.get_user_by_auth(credential)
 
     if not user:
         raise BaseHTTPException(404, "user_not_found")
     return user
+
+
+@router.post("/users")
+async def create_by_credentials(
+    request: Request, response: Response, authenticator: AuthenticatorDTO
+):
+    website = await get_website(request)
+    credential = BasicAuthenticator(
+        interface=website.origin, **authenticator.model_dump()
+    )
+    user = await user_registration(request, response, credential)
+    user_dict = user.model_dump()
+    user_dict.pop("token", None)
+    return user_dict
 
 
 @router.get("/users/{uid:str}")
@@ -130,12 +141,20 @@ async def get_user(request: Request, uid: str):
 
 
 @router.post("/users/{uid:str}/credentials")
-async def get_users(request: Request, uid: str, authenticator: AuthenticatorDTO):
+async def create_credentials_users(
+    request: Request, uid: str, authenticator: AuthenticatorDTO
+):
     website = await get_website(request)
     user = await get_user(request, uid)
+    if not user:
+        raise BaseHTTPException(404, "user_not_found")
     credential = BasicAuthenticator(
         interface=website.origin, **authenticator.model_dump()
     )
+    user, _ = await User.get_user_by_auth(credential)
+    if user:
+        raise BaseHTTPException(409, "credential_exists")
+
     await user.add_authenticator(credential)
     return user
 
@@ -160,6 +179,7 @@ async def set_payload(request: Request, uid: str, payload: dict):
     user.data = payload
     await user.save()
     return user.data
+
 
 '''
 # @router.get("", response_model=UserSerializer)

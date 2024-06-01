@@ -109,6 +109,7 @@ class AuthMethod(str, Enum):
     email_link = "email/link"
     oauth2 = "oauth2"
     telegram = "telegram"
+    bale = "bale"
     other = "other"
 
     @classmethod
@@ -136,6 +137,7 @@ class AuthMethod(str, Enum):
             AuthMethod.email_link: 24 * 60,
             AuthMethod.telegram: None,
             AuthMethod.oauth2: None,
+            AuthMethod.bale: None,
             AuthMethod.other: None,
         }[self]
 

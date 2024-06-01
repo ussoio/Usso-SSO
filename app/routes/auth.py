@@ -1,7 +1,6 @@
 """Registration router."""
 
 from datetime import datetime, timedelta
-from functools import partial
 
 from app.exceptions import BaseHTTPException
 from app.middlewares.auth import create_basic_authenticator
@@ -16,7 +15,7 @@ from app.models.base import AuthMethod
 from app.models.user import BasicAuthenticator, User, UserAuthenticator
 from app.models.website import Website
 from app.serializers.auth import BaseAuth, ForgetPasswordData, OTPAuth
-from app.serializers.jwt_auth import AccessToken, JWTResponse
+from app.serializers.jwt_auth import AccessToken
 from app.serializers.user import UserSerializer
 from fastapi import APIRouter, Body, Depends, Request, Response, Security
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -66,8 +65,8 @@ async def user_registration(
     user, success = await User.register(b_auth)
     if not success:
         if user.is_active:
-            raise BaseHTTPException(400, "already_exists")
-        raise BaseHTTPException(400, "not_active")
+            raise BaseHTTPException(409, "already_exists")
+        raise BaseHTTPException(409, "not_active")
 
     response.status_code = HTTP_201_CREATED
     token = await jwt_response(user, request, response, refresh=True)
@@ -298,7 +297,7 @@ async def google_login(request: Request, callback: str | None = None):
         raise BaseHTTPException(404, "no_website")
 
     client_id = website.secrets.google_client_id
-    client_secret = website.secrets.google_client_secret
+    website.secrets.google_client_secret
     redirect_uri = f"https://{origin}/auth/google-callback"
 
     scopes = [
