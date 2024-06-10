@@ -1,7 +1,10 @@
 """Registration router."""
 
-from datetime import datetime, timedelta
+import hmac
+import hashlib
 
+from datetime import datetime, timedelta
+from typing import Annotated
 from app.exceptions import BaseHTTPException
 from app.middlewares.auth import create_basic_authenticator
 from app.middlewares.jwt_auth import (
@@ -17,8 +20,8 @@ from app.models.website import Website
 from app.serializers.auth import BaseAuth, ForgetPasswordData, OTPAuth
 from app.serializers.jwt_auth import AccessToken
 from app.serializers.user import UserSerializer
-from fastapi import APIRouter, Body, Depends, Request, Response, Security
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi import APIRouter, Body, Depends, Request, Response, Security, Query
+from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
 from requests_oauthlib import OAuth2Session
 from server.redis import redis
@@ -435,6 +438,64 @@ async def google_login_callback(
         response = RedirectResponse(url=callback)
         token = await jwt_response(user, request, response, refresh=True)
         return response
+
+    token = await jwt_response(user, request, response, refresh=True)
+    return UserSerializer(**user.model_dump(), token=token)
+
+
+@router.get("/telegram")
+async def telegram_login(request: Request, callback: str | None = None):
+    origin = request.url.hostname
+    website = await Website.get_by_origin(origin)
+    if website is None:
+        raise BaseHTTPException(404, "no_website")
+
+    redirect_uri = f"https://sso.usso.io/auth/telegram-callback"
+    return HTMLResponse(
+        f'<html><body><script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="usso_auth_bot" data-size="large" data-auth-url="{redirect_uri}" data-request-access="write"></script></body></html>'
+    )
+
+
+@router.get("/telegram-callback")
+async def telegram_callback(
+    request: Request,
+    response: Response,
+    user_id: Annotated[int, Query(alias="id")],
+    query_hash: Annotated[str, Query(alias="hash")],
+    logged_in_user=Depends(jwt_refresh_security_None),
+):
+    origin = request.url.hostname
+    website = await Website.get_by_origin(origin)
+    if website is None:
+        raise BaseHTTPException(404, "no_website")
+
+    params = request.query_params.items()
+    data_check_string = "\n".join(
+        sorted(f"{x}={y}" for x, y in params if x not in ("hash", "next"))
+    )
+    BOT_TOKEN = "7433865271:AAFARu9F-E-G23waNIZkwquo5YQ_jFK4pyA"
+    BOT_TOKEN_HASH = hashlib.sha256(BOT_TOKEN.encode())
+    computed_hash = hmac.new(
+        BOT_TOKEN_HASH.digest(), data_check_string.encode(), "sha256"
+    ).hexdigest()
+    is_correct = hmac.compare_digest(computed_hash, query_hash)
+    if not is_correct:
+        raise BaseHTTPException(400, "oath_failed")
+
+    if logged_in_user is None:
+        t_auth = BasicAuthenticator(
+            interface=origin,
+            auth_method=AuthMethod.telegram,
+            representor=f"{user_id}",
+            data=request.query_params,
+        )
+        user, created = await User.register(t_auth)
+    else:
+        user = logged_in_user
+
+    # return HTMLResponse(
+    #     f'<html><body><img src="{request.query_params.get("photo_url")}" /></body></html>'
+    # )
 
     token = await jwt_response(user, request, response, refresh=True)
     return UserSerializer(**user.model_dump(), token=token)
