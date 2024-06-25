@@ -12,10 +12,6 @@ from json_advanced import dumps
 
 from . import config, db
 
-with open("DESCRIPTION.md", "r") as f:
-    DESCRIPTION = f.read()
-
-
 @asynccontextmanager
 async def lifespan(app: fastapi.FastAPI):  # type: ignore
     """Initialize application services."""
@@ -27,14 +23,18 @@ async def lifespan(app: fastapi.FastAPI):  # type: ignore
     logging.info("Shutdown complete")
 
 
+with open("DESCRIPTION.md", "r") as f:
+    DESCRIPTION = f.read()
+
+
 app = fastapi.FastAPI(
     title="Universal SSO",
     description=DESCRIPTION,
-    version="0.1.0",
+    version="0.5.0",
     contact={
         "name": "Mahdi Kiani",
-        "url": "https://aision.io",
-        "email": "mahdi@aision.io",
+        "url": "https://usso.io",
+        "email": "mahdi@mahdikiani.com",
     },
     license_info={
         "name": "APACHE 2.0",
