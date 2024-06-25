@@ -6,7 +6,7 @@ import aiohttp
 import dotenv
 import requests
 
-from . import singleton
+import singleton
 
 # from celery import shared_task
 

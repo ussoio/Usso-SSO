@@ -74,14 +74,6 @@ class Settings(metaclass=Singleton):
                 "level": "INFO",
                 "propagate": True,
             },
-            "bot": {
-                "handlers": [
-                    "console",
-                    "bot_file",
-                ],
-                "level": "INFO",
-                "propagate": False,
-            },
         },
     }
 
