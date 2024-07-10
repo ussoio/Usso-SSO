@@ -1,4 +1,4 @@
-FROM python:3.11-slim as fast-base
+FROM python:3.11-slim AS fast-base
 
 WORKDIR /app
 
@@ -7,10 +7,10 @@ RUN python -m pip install --no-cache-dir -r requirements.txt
 
 RUN adduser --disabled-password --gecos '' user && mkdir /app/logs && chown -R user:user /app/logs
 
-FROM fast-base as fast-server
+FROM fast-base AS fast-server
 
 USER user
 COPY --chown=user:user . .
 
-CMD ["python", "-m" ,"debugpy", "--listen", "0.0.0.0:3000", "-m", "app"]
-# CMD [ "python","app.py" ]
+# CMD ["python", "-m" ,"debugpy", "--listen", "0.0.0.0:3000", "-m", "app"]
+CMD [ "python", "app.py" ]

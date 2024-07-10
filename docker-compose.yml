@@ -1,5 +1,5 @@
 services:
-  sso:
+  app:
     build: app
     restart: unless-stopped
     env_file:
@@ -45,6 +45,8 @@ services:
     environment:
       ME_CONFIG_MONGODB_SERVER: mongo
       ME_CONFIG_MONGODB_PORT: "27017"
+      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_EXPRESS_USERNAME}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_PASSWORD}
     networks:
       - data
       - traefik-net

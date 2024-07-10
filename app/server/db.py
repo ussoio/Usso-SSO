@@ -3,8 +3,7 @@ from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
 from redis import Redis as RedisSync
 from redis.asyncio.client import Redis
-
-from .config import Settings
+from server.config import Settings
 
 redis_sync: RedisSync = RedisSync.from_url(Settings.redis_uri)
 redis: Redis = Redis.from_url(Settings.redis_uri)

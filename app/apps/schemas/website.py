@@ -13,7 +13,7 @@ class AnonConfig(BaseModel):
     def from_config(self, config: WebsiteConfig):
         self.name = config.name
         self.logo = config.logo
-        for method in config.available_methods:
+        for method in config.available_methods or []:
             if method.udp:
                 self.udps.add(method)
             else:

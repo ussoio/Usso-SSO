@@ -9,8 +9,8 @@ from apps.routes import auth, user, website
 from core import exceptions
 from fastapi.responses import JSONResponse
 from json_advanced import dumps
+from server import config, db
 
-from . import config, db
 
 @asynccontextmanager
 async def lifespan(app: fastapi.FastAPI):  # type: ignore

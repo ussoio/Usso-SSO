@@ -2,14 +2,17 @@
 
 import base64
 
-from apps.middlewares.jwt_auth import jwt_access_security_user_None
+from apps.middlewares.jwt_auth import (
+    jwt_access_security_user,
+    jwt_access_security_user_None,
+)
 from apps.models.user import BasicAuthenticator, User
 from apps.models.website import Website, WebsiteConfig
 from apps.schemas.website import AnonConfig
 from apps.serializers.website import JWKS, RSAJWK
 from apps.serializers.website_user import AuthenticatorDTO
 from core.exceptions import BaseHTTPException
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 from server.db import redis_sync as redis
 
 from .auth import user_registration
@@ -57,6 +60,17 @@ async def get_jwks(request: Request, origin: str | None = None) -> JWKS:
     jwks = JWKS(keys=[jwk])
 
     return jwks
+
+
+@router.get(
+    "/", include_in_schema=lambda request: request.url.hostname.endswith("usso.io")
+)
+async def domain_list(request: Request, user: User = Depends(jwt_access_security_user)):
+    if not request.url.hostname.endswith("usso.io"):
+        raise BaseHTTPException(404, "not_found", "Not found")
+
+    websites = await Website.find({"user_uid": user.uid}).to_list()
+    return websites
 
 
 @router.get("/config")

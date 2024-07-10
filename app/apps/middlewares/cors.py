@@ -28,7 +28,8 @@ class DynamicCORSMiddleware(BaseHTTPMiddleware):
             headers["Access-Control-Allow-Origin"] = origin
             headers["Access-Control-Allow-Credentials"] = "true"
             headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-            headers["Access-Control-Allow-Headers"] = "Content-Type, *"
+            # headers["Access-Control-Allow-Headers"] = "Content-Type, *"
+            headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, *"
 
         if request.method == "OPTIONS":
             return PlainTextResponse("OK", status_code=200, headers=headers)

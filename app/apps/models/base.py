@@ -124,6 +124,25 @@ class AuthMethod(str, Enum):
         )
 
     @property
+    def name(self):
+        return {
+        }[self]
+
+    @property
+    def serialize(self):
+        {
+            "item": self.name,
+            "name": self.name,
+        }
+        {
+            "name": self.name,
+            "button_text": self.name,
+            "button_logo": "https://media.usso.io/static/img/logo.png",
+            "button_link": "https://sso.usso.io/auth/google",
+        }
+        pass
+
+    @property
     def udp(self) -> int:
         return self in (
             AuthMethod.email_password,

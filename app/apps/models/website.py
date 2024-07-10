@@ -11,7 +11,7 @@ from cryptography.hazmat.backends import default_backend as crypto_default_backe
 from cryptography.hazmat.primitives import serialization as crypto_serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
-from pydantic import BaseModel, EmailStr, root_validator
+from pydantic import BaseModel, EmailStr, field_validator, model_validator
 from server.config import Settings
 
 dotenv.load_dotenv()
@@ -19,7 +19,7 @@ dotenv.load_dotenv()
 
 class WebsiteConfig(base.BaseDBModel):
     name: str | None = None
-    logo: str | None = None
+    logo: str | None = "https://media.usso.io/usso.svg"
 
     otp_timeout: int = 60 * 5
     otp_length: int = 4
@@ -54,6 +54,10 @@ class WebsiteConfig(base.BaseDBModel):
         base.AuthMethod.email_password,
     ]
 
+    @field_validator("logo")
+    def validate_logo(cls, v):
+        return v or "https://media.usso.io/usso.svg"
+
 
 class WebsiteSMTP(BaseModel):
     host: str
@@ -82,7 +86,7 @@ class WebsiteSecrets(base.BaseDBModel):
     google_client_secret: str | None = None
     smtp: WebsiteSMTP | None = WebsiteSMTP.from_env()
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
     def set_defaults(cls, values):
         if "rsa_priv" in values and "rsa_pub" in values:
             return values
@@ -128,10 +132,16 @@ class Website(Document, base.BaseDBModel):
     #     cache_expiration_time = timedelta(minutes=60)
     #     cache_capacity = 64
 
-    @root_validator(pre=True)
-    def set_defaults(cls, values):
+    @model_validator(mode="before")
+    def set_defaults(cls, values: dict):
         if not values.get("api_key"):
             values["api_key"] = f"sso-ak-{str_tools.generate_random_chars(32)}"
+
+        origin: str = values.get("origin")
+        origin_name = origin.split(".")[0].capitalize()
+
+        values["config"] = values.get("config") or WebsiteConfig(name=origin_name)
+
         return values
 
     @classmethod
