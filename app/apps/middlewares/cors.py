@@ -3,7 +3,7 @@ from apps.models.website import Website
 from fastapi.responses import PlainTextResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-origins = {"http://localhost", "http://localhost:3000"}
+origins = {"http://localhost", "http://localhost:3000", "https://cmp-dev.liara.run"}
 
 
 class DynamicCORSMiddleware(BaseHTTPMiddleware):
