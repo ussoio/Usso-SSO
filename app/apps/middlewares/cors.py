@@ -3,12 +3,12 @@ from apps.models.website import Website
 from fastapi.responses import PlainTextResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-origins = {"http://localhost", "http://localhost:3000", "https://cmp-dev.liara.run"}
+origins = {"http://localhost", "http://localhost:3000"}
 
 
 class DynamicCORSMiddleware(BaseHTTPMiddleware):
     async def get_allowed_origins(self, origins=origins, **kwargs):
-        websites = await Website.list().skip(0).limit(10).to_list()
+        websites = await Website.list().skip(0).limit(100).to_list()
         if kwargs.get("origin"):
             origins.add(kwargs["origin"])
             return origins
@@ -21,6 +21,7 @@ class DynamicCORSMiddleware(BaseHTTPMiddleware):
 
         origin = request.headers.get("origin")
         allowed_origins = await self.get_allowed_origins(origin=origin)
+        # logging.info(f"{allowed_origins}")
 
         # Dynamically check if the origin is allowed
         headers = {}

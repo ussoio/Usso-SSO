@@ -125,8 +125,7 @@ class AuthMethod(str, Enum):
 
     @property
     def name(self):
-        return {
-        }[self]
+        return {}[self]
 
     @property
     def serialize(self):
@@ -140,7 +139,6 @@ class AuthMethod(str, Enum):
             "button_logo": "https://media.usso.io/static/img/logo.png",
             "button_link": "https://sso.usso.io/auth/google",
         }
-        pass
 
     @property
     def udp(self) -> int:

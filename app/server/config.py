@@ -51,12 +51,6 @@ class Settings(metaclass=Singleton):
                 "filename": base_dir / "logs" / "info.log",
                 "formatter": "standard",
             },
-            "bot_file": {
-                "class": "logging.FileHandler",
-                "level": "INFO",
-                "filename": base_dir / "logs" / "bot.log",
-                "formatter": "standard",
-            },
         },
         "formatters": {
             "standard": {

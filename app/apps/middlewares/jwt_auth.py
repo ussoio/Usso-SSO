@@ -318,7 +318,7 @@ async def jwt_refresh_security(
     """Return the user associated with a token value."""
     origin = request.url.hostname
 
-    if refresh_token:
+    if refresh_token and refresh_token.refresh_token:
         return await user_from_refresh_token(refresh_token.refresh_token, origin)
 
     try:
