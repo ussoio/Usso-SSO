@@ -10,13 +10,13 @@ import dotenv
 from singleton import Singleton
 
 dotenv.load_dotenv()
-base_dir = Path(__file__).resolve().parent.parent
 
 
 @dataclasses.dataclass
 class Settings(metaclass=Singleton):
     """Server config settings."""
 
+    base_dir = Path(__file__).resolve().parent.parent
     root_url: str = os.getenv("DOMAIN", default="http://localhost:8000")
     mongo_uri: str = os.getenv("MONGO_URI")
     redis_uri: str = os.getenv("REDIS_URI")
@@ -42,12 +42,12 @@ class Settings(metaclass=Singleton):
         "handlers": {
             "console": {
                 "class": "logging.StreamHandler",
-                "level": "WARNING",
+                "level": "INFO",
                 "formatter": "standard",
             },
             "file": {
                 "class": "logging.FileHandler",
-                "level": "INFO",
+                "level": "DEBUG",
                 "filename": base_dir / "logs" / "info.log",
                 "formatter": "standard",
             },
@@ -55,7 +55,6 @@ class Settings(metaclass=Singleton):
         "formatters": {
             "standard": {
                 "format": "[{levelname} : {filename}:{lineno} : {asctime} -> {funcName:10}] {message}",
-                # "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
                 "style": "{",
             }
         },
@@ -65,14 +64,19 @@ class Settings(metaclass=Singleton):
                     "console",
                     "file",
                 ],
-                "level": "INFO",
+                "level": (
+                    "INFO"
+                    if os.getenv("TESTING", default="").lower() not in ["true", "1"]
+                    else "DEBUG"
+                ),
                 "propagate": True,
             },
         },
     }
 
-    def config_logger(self):
-        if not (base_dir / "logs").exists():
-            (base_dir / "logs").mkdir()
+    @classmethod
+    def config_logger(cls):
+        if not (cls.base_dir / "logs").exists():
+            (cls.base_dir / "logs").mkdir()
 
-        logging.config.dictConfig(self.log_config)
+        logging.config.dictConfig(cls.log_config)
