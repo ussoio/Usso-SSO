@@ -56,7 +56,7 @@ async def base_http_exception_handler(
 
 @app.exception_handler(pydantic.ValidationError)
 @app.exception_handler(fastapi.exceptions.ResponseValidationError)
-async def usso_exception_handler(
+async def pydantic_exception_handler(
     request: fastapi.Request, exc: pydantic.ValidationError
 ):
     return JSONResponse(
@@ -70,7 +70,7 @@ async def usso_exception_handler(
 
 
 @app.exception_handler(Exception)
-async def usso_exception_handler(request: fastapi.Request, exc: Exception):
+async def general_exception_handler(request: fastapi.Request, exc: Exception):
     import traceback
 
     traceback_str = "".join(traceback.format_tb(exc.__traceback__))

@@ -24,9 +24,20 @@ async def send_kavenegar_async(phone: str, text: str):
         "sender": "100088008088",
     }
 
-    async with aiohttp.ClientSession() as session:
-        async with session.get(kavenegar, params=params) as response:
-            return await response.json()
+    ssl = True
+    for _ in range(3):
+        try:
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as session:
+                async with session.get(kavenegar, ssl=ssl, params=params) as response:
+                    response.raise_for_status()
+                    return await response.json()
+
+        except aiohttp.ClientError as e:
+            if not isinstance(e, aiohttp.ClientSSLError):
+                return
+        ssl = False
 
 
 async def send_infobip_async(phone: str, text: str):

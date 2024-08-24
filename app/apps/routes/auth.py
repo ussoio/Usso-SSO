@@ -300,7 +300,10 @@ async def google_login(request: Request, callback: str | None = None):
         raise BaseHTTPException(404, "no_website")
 
     client_id = website.secrets.google_client_id
-    website.secrets.google_client_secret
+    import logging
+
+    logging.info(client_id)
+    # secret = website.secrets.google_client_secret
     redirect_uri = f"https://{origin}/auth/google-callback"
 
     scopes = [
