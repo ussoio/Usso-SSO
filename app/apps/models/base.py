@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Annotated, Optional
 
 from beanie import Indexed
-from pydantic import BaseModel, Field, root_validator
+from pydantic import BaseModel, Field, model_validator
 
 
 def abbreviate(text: str) -> str:
@@ -25,7 +25,7 @@ class BaseDBModel(BaseModel):
     is_deleted: bool = False
     data: dict = {}
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
     def set_default_uid(cls, values):
         if "uid" not in values or values["uid"] is None:
             values["uid"] = get_unique_id(cls)
@@ -55,7 +55,7 @@ class BaseDBModel(BaseModel):
         return False
 
     @classmethod
-    def list(cls) -> list["BaseDBModel"]:
+    def list(cls):
         return cls.find_all(cls.is_deleted == False)
 
     @classmethod
@@ -101,53 +101,114 @@ class BaseDBModel(BaseModel):
 
 
 class AuthMethod(str, Enum):
-    google = "google"
     email_password = "email/password"
+    email_link = "email/link"
+    email_otp = "email/otp"
     user_password = "user/password"
     phone_otp = "phone/otp"
+    phone_password = "phone/password"
+
     authenticator_app = "authenticator_app"
-    email_link = "email/link"
+    qr = "qr"
+
+    google = "google"
     oauth2 = "oauth2"
     telegram = "telegram"
     bale = "bale"
+    app = "app"
     other = "other"
+
+    @property
+    def validation_regex(self):
+        return {
+            AuthMethod.email_password: r"^[a-zA-Z\._]+@[a-zA-Z0-9\.-_]+\.[a-zA-Z]{2,}$",
+            AuthMethod.email_link: r"^[a-zA-Z\._]+@[a-zA-Z0-9\.-_]+\.[a-zA-Z]{2,}$",
+            AuthMethod.email_otp: r"^[a-zA-Z\._]+@[a-zA-Z0-9\.-_]+\.[a-zA-Z]{2,}$",
+            AuthMethod.user_password: r"^[a-zA-Z_][a-zA-Z0-9_]{2,16}$",
+            AuthMethod.phone_otp: r"^(?:\+?98|0098|0)9[0-9]{9}$",
+            AuthMethod.phone_password: r"^(?:\+?98|0098|0)9[0-9]{9}$",
+        }.get(self)
+
+    def get_secret_model(self):
+        from apps.schemas.config import SecretModel
+
+        password_secret_dict = {
+            "api": "/auth/login",
+            "name": "password",
+            "type": "password",
+            "placeholder": "Password",
+            "description": "Enter your password",
+        }
+        otp_secret_dict = {
+            "api": "/auth/login",
+            "name": "otp",
+            "type": "otp",
+            "placeholder": "OTP",
+            "description": "Enter the OTP",
+        }
+        link_secret_dict = {
+            "api": "/auth/login",
+            "type": "link",
+            "placeholder": "Link",
+            "description": "Enter the login link",
+        }
+
+        secret_dict = {
+            AuthMethod.email_password: password_secret_dict,
+            AuthMethod.email_link: link_secret_dict,
+            AuthMethod.email_otp: otp_secret_dict,
+            AuthMethod.user_password: password_secret_dict,
+            AuthMethod.phone_otp: otp_secret_dict,
+            AuthMethod.phone_password: password_secret_dict,
+        }
+
+        return SecretModel(method=self.value, **secret_dict.get(self))
+
+    @property
+    def text(self):
+        return {
+            AuthMethod.google: "Sign in with Google",
+        }.get(self)
+
+    @property
+    def icon(self):
+        return {AuthMethod.google: "https://sso.usso.io/web/google.svg"}.get(self)
+
+    @property
+    def color(self):
+        return {AuthMethod.google: "#4285F4"}.get(self)
+
+    @property
+    def auth_url(self):
+        return {AuthMethod.google: "/auth/google"}.get(self)
 
     @classmethod
     def email_methods(cls) -> list["AuthMethod"]:
-        return [AuthMethod.google, AuthMethod.email_password, AuthMethod.email_link]
-
-    def needs_validation(self) -> bool:
-        return self in (
-            AuthMethod.email_password,
-            AuthMethod.phone_otp,
-            AuthMethod.authenticator_app,
-        )
-
-    @property
-    def name(self):
-        return {}[self]
-
-    @property
-    def serialize(self):
-        {
-            "item": self.name,
-            "name": self.name,
-        }
-        {
-            "name": self.name,
-            "button_text": self.name,
-            "button_logo": "https://media.usso.io/static/img/logo.png",
-            "button_link": "https://sso.usso.io/auth/google",
-        }
-
-    @property
-    def udp(self) -> int:
-        return self in (
+        return [
+            AuthMethod.google,
             AuthMethod.email_password,
             AuthMethod.email_link,
+            AuthMethod.email_otp,
+        ]
+
+    def needs_validation(self) -> bool:
+        return self in {
+            AuthMethod.user_password,
+            AuthMethod.email_password,
+            AuthMethod.phone_password,
+            AuthMethod.authenticator_app,
+        }
+
+    @property
+    def is_credential(self) -> bool:
+        return self in {
+            AuthMethod.email_password,
+            AuthMethod.email_link,
+            AuthMethod.email_otp,
             AuthMethod.user_password,
             AuthMethod.phone_otp,
-        )
+            AuthMethod.phone_password,
+        }
 
     @property
     def max_attempts(self) -> int:
@@ -156,24 +217,23 @@ class AuthMethod(str, Enum):
     @property
     def max_age_minutes(self) -> int:
         return {
-            AuthMethod.google: None,
-            AuthMethod.email_password: None,
             AuthMethod.phone_otp: 5,
-            AuthMethod.authenticator_app: None,
+            AuthMethod.email_otp: 60,
             AuthMethod.email_link: 24 * 60,
-            AuthMethod.telegram: None,
-            AuthMethod.oauth2: None,
-            AuthMethod.bale: None,
-            AuthMethod.other: None,
-        }[self]
+        }.get(self)
 
     def needs_secret(self) -> bool:
-        return self in (AuthMethod.email_password,)
+        return self in {
+            AuthMethod.email_password,
+            AuthMethod.phone_password,
+            AuthMethod.user_password,
+        }
 
     def valid_by_login(self) -> bool:
-        return self in (
+        return self in {
             AuthMethod.google,
             AuthMethod.phone_otp,
             AuthMethod.authenticator_app,
             AuthMethod.email_link,
-        )
+            AuthMethod.email_otp,
+        }

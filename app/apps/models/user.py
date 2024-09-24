@@ -6,11 +6,12 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Tuple
 
+from beanie import Document
+from pydantic import BaseModel, Field
+
 from apps.models import base
 from apps.models.website import Website
 from apps.util import password, sms, str_tools, utility
-from beanie import Document
-from pydantic import BaseModel, Field
 
 
 class BasicAuthenticator(base.BaseDBModel):
@@ -102,7 +103,12 @@ class UserAuthenticator(BasicAuthenticator):
             )
             return temp_ua
         elif self.auth_method == base.AuthMethod.phone_otp:
-            await self.send_otp()
+            website = await Website.get_by_origin(self.interface)
+
+            await self.send_otp(
+                kavenegar_api_key=website.secrets.kavenegar_api_key,
+                kavenegar_template=website.secrets.kavenegar_template,
+            )
         elif self.auth_method == base.AuthMethod.google:
             self.__make_valid()
         elif self.auth_method == base.AuthMethod.authenticator_app:
@@ -142,7 +148,12 @@ class UserAuthenticator(BasicAuthenticator):
         return temp_ua
 
     async def send_otp(
-        self, length=4, text=f"کد ورود به رنتامون:\nCode: {{otp}}", timeout=5 * 60
+        self,
+        length=4,
+        text=f"{{otp}}",
+        timeout=5 * 60,
+        test=False,
+        **kwargs,
     ) -> str:
         from server.db import redis_sync as redis
 
@@ -151,7 +162,8 @@ class UserAuthenticator(BasicAuthenticator):
 
         phone = self.representor
         self.secret = str_tools.generate_random_chars(length, "1234567890")
-        await sms.send_sms_async(phone, text.format(otp=self.secret))
+        if not test:
+            await sms.send_sms_async(phone, text.format(otp=self.secret), **kwargs)
         redis.set(
             f"OTP:{self.interface}:{phone}:{self.secret}", self.secret, ex=timeout
         )

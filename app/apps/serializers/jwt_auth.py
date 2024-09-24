@@ -3,7 +3,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class JWTMode(str, Enum):
@@ -36,7 +36,10 @@ class JWTPayload(BaseModel):
     authentication_method: str | None = None
     is_active: bool = False
 
-    # @root_validator(pre=True)
+    scopes: list[str] | None = None
+    app_id: str | None = None
+
+    # @model_validator(mode="before")
     # def validate_data(cls, values):
     #     if values.get("jwk_url") is None:
     #         values["jwk_url"] = "https://" + (
@@ -45,7 +48,7 @@ class JWTPayload(BaseModel):
 
     #     return values
 
-    @validator("exp", pre=True)
+    @field_validator("exp", mode="before")
     def convert_datetime_to_timestamp(cls, v):
         if v is None:
             return int(datetime.utcnow().timestamp()) + 60

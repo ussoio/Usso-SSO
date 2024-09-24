@@ -4,11 +4,12 @@ from contextlib import asynccontextmanager
 
 import fastapi
 import pydantic
-from apps.middlewares import cors
-from apps.routes import auth, user, website
-from core import exceptions
 from fastapi.responses import JSONResponse
 from json_advanced import dumps
+
+from apps.middlewares import cors
+from apps.routes import app_auth, auth, user, website
+from core import exceptions
 from server import config, db
 
 
@@ -16,12 +17,14 @@ from server import config, db
 async def lifespan(app: fastapi.FastAPI):  # type: ignore
     """Initialize application services."""
     await db.init_db()
-    config.Settings().config_logger()
+    config.Settings.config_logger()
 
     logging.info("Startup complete")
     yield
     logging.info("Shutdown complete")
 
+
+config.Settings.config_logger()
 
 with open("DESCRIPTION.md", "r") as f:
     DESCRIPTION = f.read()
@@ -90,8 +93,30 @@ app.add_middleware(cors.DynamicCORSMiddleware)
 app.include_router(auth.router)
 app.include_router(user.router)
 app.include_router(website.router)
+app.include_router(app_auth.router)
+
+from fastapi.staticfiles import StaticFiles
+
+app.mount("/web", StaticFiles(directory=config.Settings.base_dir / "web"), name="web")
+
+app.mount(
+    "/_next",
+    StaticFiles(directory=config.Settings.base_dir / "web" / "_next"),
+    name="_next",
+)
+
+app.mount(
+    "/fonts",
+    StaticFiles(directory=config.Settings.base_dir / "web" / "fonts"),
+    name="fonts",
+)
 
 
 @app.get("/")
 async def index():
     return {"message": "Hello World!"}
+
+
+@app.get("/health")
+async def index():
+    return {"status": "ok"}

@@ -5,6 +5,12 @@ import hmac
 from datetime import datetime, timedelta
 from typing import Annotated
 
+from fastapi import APIRouter, Body, Depends, Query, Request, Response, Security
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
+from requests_oauthlib import OAuth2Session
+from starlette.status import HTTP_201_CREATED
+
 from apps.middlewares.auth import create_basic_authenticator
 from apps.middlewares.jwt_auth import (
     get_email_secret_data_from_token,
@@ -20,12 +26,7 @@ from apps.serializers.auth import BaseAuth, ForgetPasswordData, OTPAuth
 from apps.serializers.jwt_auth import AccessToken
 from apps.serializers.user import UserSerializer
 from core.exceptions import BaseHTTPException
-from fastapi import APIRouter, Body, Depends, Query, Request, Response, Security
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
-from requests_oauthlib import OAuth2Session
 from server.db import redis_sync as redis
-from starlette.status import HTTP_201_CREATED
 
 router = APIRouter(prefix="/auth", tags=["Register"])
 
@@ -76,6 +77,16 @@ async def user_registration(
     return UserSerializer(token=token, **user.model_dump())
 
 
+@router.post("/1st-step")
+async def step1(
+    request: Request,
+    response: Response,
+    data: dict = Body(),
+):
+    if "phone" in data:
+        return await phone_otp_request(request, response, phone=data["phone"])
+
+
 @router.post("/login")
 async def login(
     request: Request,
@@ -114,27 +125,33 @@ async def refresh(
 async def phone_otp_request(
     request: Request,
     response: Response,
-    phone: str = embed,
+    test: bool = False,
+    phone: str = Body(embed=True),
 ) -> JSONResponse:
     """Send OTP to phone using sms."""
     website = await Website.get_by_origin(request.url.hostname)
     b_auth = create_basic_authenticator(request, OTPAuth(phone=phone))
     _, auth = await User.get_user_by_auth(b_auth)
-    if auth:
-        # otp = await auth.send_otp()
-        otp = await auth.send_otp(
-            length=website.config.otp_length,
-            text=website.config.otp_message,
-            timeout=website.config.otp_timeout,
-        )
-        return JSONResponse(
-            {"message": f"{len(otp)}-digit otp sms has sent"}, status_code=200
-        )
 
-    user, success = await User.register(b_auth)
-    response.status_code = HTTP_201_CREATED
-    token = await jwt_response(user, request, response, refresh=True)
-    return UserSerializer(token=token, **user.model_dump())
+    if not auth:
+        user, success = await User.register(b_auth)
+        auth = user.current_authenticator
+
+    otp = await auth.send_otp(
+        length=website.config.otp_length,
+        text=website.config.otp_message,
+        timeout=website.config.otp_timeout,
+        test=test,
+        kavenegar_api_key=website.secrets.kavenegar_api_key,
+        kavenegar_template=website.secrets.kavenegar_template,
+    )
+
+    return JSONResponse(
+        {"message": f"{len(otp)}-digit otp sms has sent"}, status_code=200
+    )
+    # response.status_code = HTTP_201_CREATED
+    # token = await jwt_response(user, request, response, refresh=True)
+    # return UserSerializer(token=token, **user.model_dump())
 
 
 @router.post("/login-otp")
@@ -519,9 +536,13 @@ async def logout(
                 break
         await user.save()
 
-    response.delete_cookie("access_token")
-    response.delete_cookie("refresh_token")
-    response.delete_cookie("usso_logged_in")
+    origin = request.url.hostname
+    parent_domain = ".".join(origin.split(".")[1:])
+
+    response.delete_cookie("usso_access_available", domain=parent_domain, secure=True)
+    response.delete_cookie("usso_access_token", domain=parent_domain, secure=True)
+    response.delete_cookie("usso_refresh_available", domain=parent_domain, secure=True)
+    response.delete_cookie("usso_refresh_token", secure=True)
 
     return JSONResponse({"message": f"{jti} session logged out"}, status_code=200)
 
@@ -542,17 +563,12 @@ async def logout(
 
     if request.query_params.get("callback"):
         response = RedirectResponse(url=request.query_params.get("callback"))
+    else:
+        response = JSONResponse({"message": "logged out"}, status_code=200)
 
-    response.delete_cookie(
-        "access_token",
-        domain=parent_domain,
-        httponly=True,
-        samesite="none",
-        secure=True,
-    )
-    response.delete_cookie("refresh_token")
+    response.delete_cookie("usso_access_available", domain=parent_domain, secure=True)
+    response.delete_cookie("usso_access_token", domain=parent_domain, secure=True)
+    response.delete_cookie("usso_refresh_available", domain=parent_domain, secure=True)
+    response.delete_cookie("usso_refresh_token", secure=True)
 
-    if request.query_params.get("callback"):
-        return response
-
-    return {"message": "logged out"}
+    return response

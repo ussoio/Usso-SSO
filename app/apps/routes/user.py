@@ -1,9 +1,10 @@
 """User router."""
 
+from fastapi import APIRouter, Response, Security
+
 from apps.middlewares.jwt_auth import jwt_access_security_user
 from apps.models.user import User
 from apps.serializers.user import UserSerializer, UserUpdate
-from fastapi import APIRouter, Response, Security
 
 router = APIRouter(prefix="/user", tags=["User"])
 

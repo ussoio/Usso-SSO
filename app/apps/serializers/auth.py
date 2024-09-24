@@ -1,6 +1,7 @@
+from pydantic import BaseModel, EmailStr, field_validator
+
 from apps.models.base import AuthMethod
 from apps.util import password, str_tools
-from pydantic import BaseModel, EmailStr, validator
 
 
 class BaseAuth(BaseModel):
@@ -15,7 +16,7 @@ class Auth(BaseAuth):
 class ForgetPasswordData(BaseModel):
     email: EmailStr
 
-    @validator("email")
+    @field_validator("email")
     def validate_email(cls, v):
         return str_tools.email_validator(v)
 
@@ -24,11 +25,11 @@ class EmailAuth(BaseModel):
     email: EmailStr
     password: str
 
-    @validator("email")
+    @field_validator("email")
     def validate_email(cls, v):
         return str_tools.email_validator(v)
 
-    @validator("password", pre=True)
+    @field_validator("password", mode="before")
     def validate_password(cls, v):
         errors = password.check_password_strength(v)
         if errors:
@@ -44,7 +45,7 @@ class OTPAuth(BaseModel):
     phone: str
     otp: str | None = None
 
-    @validator("phone", pre=True)
+    @field_validator("phone", mode="before")
     def validate_phone(cls, v):
         if not str_tools.is_valid_mobile(v):
             raise ValueError("phone number is not valid")

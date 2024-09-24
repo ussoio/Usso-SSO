@@ -1,5 +1,6 @@
-from apps.models import base
 from pydantic import BaseModel, Field
+
+from apps.models import base
 
 
 class WebsiteSerializer(BaseModel):

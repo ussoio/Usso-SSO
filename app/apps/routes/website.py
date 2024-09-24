@@ -1,6 +1,9 @@
 """Website router."""
 
 import base64
+import logging
+
+from fastapi import APIRouter, Depends, Request, Response
 
 from apps.middlewares.jwt_auth import (
     jwt_access_security_user,
@@ -12,7 +15,6 @@ from apps.schemas.website import AnonConfig
 from apps.serializers.website import JWKS, RSAJWK
 from apps.serializers.website_user import AuthenticatorDTO
 from core.exceptions import BaseHTTPException
-from fastapi import APIRouter, Depends, Request, Response
 from server.db import redis_sync as redis
 
 from .auth import user_registration
@@ -22,15 +24,18 @@ router = APIRouter(prefix="/website", tags=["Website"])
 
 async def get_website(request: Request):
     user: User = await jwt_access_security_user_None(request=request)  # type: ignore[no-untyped-def]
-    website = await Website.get_by_origin(request.url.hostname)
-    if not user or user.uid != website.user_uid:
-        if not request.headers.get("x-api-key"):
-            raise BaseHTTPException(403, "forbidden")
 
-        api_key = request.headers.get("x-api-key")
-        w = await Website.find_one(Website.api_key == api_key)
-        if not (w and w.uid == website.uid):
-            raise BaseHTTPException(403, "forbidden")
+    website = await Website.get_by_origin(request.url.hostname)
+    if user and user.uid == website.user_uid:
+        return website
+
+    api_key = request.headers.get("x-api-key")
+    if not api_key:
+        raise BaseHTTPException(403, "forbidden")
+
+    w = await Website.find_one(Website.api_key == api_key)
+    if not (w and w.uid == website.uid):
+        raise BaseHTTPException(403, "forbidden")
     return website
 
 
@@ -75,7 +80,17 @@ async def domain_list(request: Request, user: User = Depends(jwt_access_security
 
 @router.get("/config")
 async def get_config(request: Request):
+    from apps.schemas.config import get_config_model
+
     website = await Website.get_by_origin(request.url.hostname)
+    config_model = get_config_model(website.config)
+    return config_model
+    import json
+
+    with open("config.json", "r") as f:
+        config = json.load(f)
+    return config
+
     user: User = await jwt_access_security_user_None(request=request)  # type: ignore[no-untyped-def]
     if not user or user.uid != website.user_uid:
         if not request.headers.get("x-api-key"):
@@ -102,6 +117,7 @@ async def update_config(request: Request, config: dict):
 
 @router.get("/otp")
 async def get_otp(request: Request, phone: str | None):
+    logging.info(f"otp request for {phone}")
     await get_website(request)
 
     redis_key_query = f"OTP:{request.url.hostname}:{phone}:*"

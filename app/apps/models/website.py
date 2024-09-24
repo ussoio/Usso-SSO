@@ -4,14 +4,17 @@ from typing import Annotated
 
 import dotenv
 import jwt
-from apps.models import base
-from apps.util import str_tools, utility
 from beanie import Document, Indexed
 from cryptography.hazmat.backends import default_backend as crypto_default_backend
 from cryptography.hazmat.primitives import serialization as crypto_serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
+from json_advanced import dumps
 from pydantic import BaseModel, EmailStr, field_validator, model_validator
+
+from apps.models import base
+from apps.schemas.config import BrandingModel, LegalModel
+from apps.util import str_tools, utility
 from server.config import Settings
 
 dotenv.load_dotenv()
@@ -20,6 +23,9 @@ dotenv.load_dotenv()
 class WebsiteConfig(base.BaseDBModel):
     name: str | None = None
     logo: str | None = "https://media.usso.io/usso.svg"
+
+    branding: BrandingModel | None = None
+    legal: LegalModel = LegalModel()
 
     otp_timeout: int = 60 * 5
     otp_length: int = 4
@@ -85,6 +91,8 @@ class WebsiteSecrets(base.BaseDBModel):
     google_client_id: str | None = None
     google_client_secret: str | None = None
     smtp: WebsiteSMTP | None = WebsiteSMTP.from_env()
+    kavenegar_api_key: str | None = None
+    kavenegar_template: str | None = None
 
     @model_validator(mode="before")
     def set_defaults(cls, values):
@@ -111,7 +119,7 @@ class WebsiteSecrets(base.BaseDBModel):
         values["rsa_pub"] = public_key
         return values
 
-    # @validator("smtp", pre=True)
+    # @field_validator("smtp", mode="before")
     # def smtp_validator(cls, v):
     #     if v is None:
     #         return WebsiteSMTP.from_env()
@@ -146,22 +154,22 @@ class Website(Document, base.BaseDBModel):
 
     @classmethod
     async def get_by_origin(cls, origin: str) -> "Website":
-        from server.db import redis_sync as redis
+        # from server.db import redis_sync as redis
 
-        redis_key = f"{cls.__name__}:{origin}"
-        website = redis.get(redis_key)
-        if website:
-            return cls(**json.loads(website, object_hook=utility.json_deserializer))
+        # redis_key = f"{cls.__name__}:{origin}"
+        # website = redis.get(redis_key)
+        # if website:
+        #     return cls(**json.loads(website, object_hook=utility.json_deserializer))
         website = await cls.find_one(cls.origin == origin)
         if not website:
             website = await cls(origin=origin, user_uid="123").save()
             # return website
 
-        redis.set(
-            redis_key,
-            json.dumps(website.model_dump(), cls=utility.JSONSerializer),
-            ex=60 * 60 * 24,
-        )
+        # redis.set(
+        #     redis_key,
+        #     dumps(website.model_dump()),
+        #     ex=60 * 60 * 24,
+        # )
         return website
 
     def get_mail_conf(self):

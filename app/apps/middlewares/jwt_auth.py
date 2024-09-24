@@ -1,11 +1,14 @@
 """FastAPI JWT configuration."""
 
 import base64
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Optional, Tuple
 
 import aiohttp
 import jwt
+from fastapi import Request, Response
+from starlette.status import HTTP_401_UNAUTHORIZED
+
 from apps.models.base import AuthMethod
 from apps.models.user import LoginSession, User
 from apps.models.website import Website
@@ -17,8 +20,6 @@ from apps.serializers.jwt_auth import (
     UserData,
 )
 from core.exceptions import BaseHTTPException
-from fastapi import Request, Response
-from starlette.status import HTTP_401_UNAUTHORIZED
 
 # from fastapi_jwt import JwtAuthorizationCredentials, JwtAccessBearer, JwtRefreshBearer
 
@@ -38,7 +39,7 @@ async def get_token(user: User, website: Website, token_type: JWTMode, **kwargs)
 
     payload = JWTPayload(
         user_id=user.uid,
-        exp=datetime.utcnow()
+        exp=datetime.now(UTC)
         + timedelta(
             seconds=(
                 website.config.access_timeout
@@ -57,7 +58,7 @@ async def get_token(user: User, website: Website, token_type: JWTMode, **kwargs)
         **kwargs,
     )
 
-    return website.get_token(payload.model_dump())
+    return website.get_token(payload.model_dump(exclude_none=True))
 
 
 async def answer_jwt_in_cookie(request: Request):
@@ -98,7 +99,7 @@ async def jwt_response(
 ) -> JWTResponse:
     if user is None:
         raise BaseHTTPException(401, "unauthorized")
-    origin = request.url.hostname
+    origin = kwargs.get("origin", request.url.hostname)
     website = await Website.get_by_origin(origin)
     if website is None:
         raise BaseHTTPException(404, "bad_origin")
@@ -142,7 +143,8 @@ async def jwt_response(
             httponly=True,
             max_age=website.config.access_timeout,
             domain=parent_domain,
-            samesite="none",
+            samesite="lax",
+            # samesite="none",
             secure=True,
         )
         response.set_cookie(
@@ -151,8 +153,8 @@ async def jwt_response(
             # httponly=True,
             max_age=website.config.access_timeout,
             domain=parent_domain,
-            # samesite="lax",
-            samesite="none",
+            samesite="lax",
+            # samesite="none",
             secure=True,
         )
         if refresh:

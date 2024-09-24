@@ -41,3 +41,4 @@ pyjwt[crypto]
 password-strength
 
 singleton_package
+json-advanced

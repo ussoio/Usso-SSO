@@ -16,8 +16,43 @@ KAVENEGAR_API_KEY = os.getenv("KAVENEGAR_API_KEY")
 INFOBIP_API_KEY = os.getenv("INFOBIP_API_KEY")
 
 
-async def send_kavenegar_async(phone: str, text: str):
-    kavenegar = f"https://api.kavenegar.com/v1/{KAVENEGAR_API_KEY}/sms/send.json"
+async def send_kavenegar_template_async(
+    phone: str, template: str, token: str, api_key: str = KAVENEGAR_API_KEY
+):
+    kavenegar = f"https://api.kavenegar.com/v1/{api_key}/verify/lookup.json"
+    params = {
+        "receptor": phone,
+        "token": token,
+        "template": template,
+    }
+
+    ssl = True
+    for _ in range(3):
+        try:
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as session:
+                async with session.get(kavenegar, ssl=ssl, params=params) as response:
+                    response.raise_for_status()
+                    return await response.json()
+
+        except aiohttp.ClientError as e:
+            if not isinstance(e, aiohttp.ClientSSLError):
+                return
+        ssl = False
+
+
+async def send_kavenegar_async(phone: str, text: str, **kwargs):
+    kavenegar_api_key = (
+        kwargs.get("kavenegar_api_key", KAVENEGAR_API_KEY) or KAVENEGAR_API_KEY
+    )
+    kavenegar_template = kwargs.get("kavenegar_template", None)
+
+    if kavenegar_template:
+        return await send_kavenegar_template_async(
+            phone, kavenegar_template, text, kavenegar_api_key
+        )
+    kavenegar = f"https://api.kavenegar.com/v1/{kavenegar_api_key}/sms/send.json"
     params = {
         "receptor": phone,
         "message": text,
@@ -40,7 +75,7 @@ async def send_kavenegar_async(phone: str, text: str):
         ssl = False
 
 
-async def send_infobip_async(phone: str, text: str):
+async def send_infobip_async(phone: str, text: str, **kwargs):
     base_url = "ppepv3.api.infobip.com"
     send_url = f"https://{base_url}/sms/2/text/advanced"
 
@@ -64,19 +99,19 @@ async def send_infobip_async(phone: str, text: str):
             print(data)
 
 
-async def send_sms_async(phone: str, text: str):
+async def send_sms_async(phone: str, text: str, **kwargs):
     if str(phone).startswith("98"):
-        return await send_kavenegar_async(phone, text)
-    return await send_infobip_async(phone, text)
+        return await send_kavenegar_async(phone, text, **kwargs)
+    return await send_infobip_async(phone, text, **kwargs)
 
 
-def send_message(phone: str, text: str):
-    asyncio.run(send_sms_async(phone, text))
+def send_message(phone: str, text: str, **kwargs):
+    asyncio.run(send_sms_async(phone, text, **kwargs))
 
 
 # @shared_task
-def send_message_task(phone: str, text: str):
-    send_message(phone, text)
+def send_message_task(phone: str, text: str, **kwargs):
+    send_message(phone, text, **kwargs)
 
 
 class Kavenegar(metaclass=singleton.Singleton):
