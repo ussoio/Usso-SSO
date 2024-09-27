@@ -6,12 +6,11 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Tuple
 
-from beanie import Document
-from pydantic import BaseModel, Field
-
 from apps.models import base
 from apps.models.website import Website
 from apps.util import password, sms, str_tools, utility
+from beanie import Document
+from pydantic import BaseModel, Field
 
 
 class BasicAuthenticator(base.BaseDBModel):

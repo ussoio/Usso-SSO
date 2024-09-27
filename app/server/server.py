@@ -4,12 +4,11 @@ from contextlib import asynccontextmanager
 
 import fastapi
 import pydantic
-from fastapi.responses import JSONResponse
-from json_advanced import dumps
-
 from apps.middlewares import cors
 from apps.routes import app_auth, auth, user, website
 from core import exceptions
+from fastapi.responses import JSONResponse
+from json_advanced import dumps
 from server import config, db
 
 

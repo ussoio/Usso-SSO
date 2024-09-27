@@ -3,8 +3,6 @@
 import base64
 import logging
 
-from fastapi import APIRouter, Depends, Request, Response
-
 from apps.middlewares.jwt_auth import (
     jwt_access_security_user,
     jwt_access_security_user_None,
@@ -15,6 +13,7 @@ from apps.schemas.website import AnonConfig
 from apps.serializers.website import JWKS, RSAJWK
 from apps.serializers.website_user import AuthenticatorDTO
 from core.exceptions import BaseHTTPException
+from fastapi import APIRouter, Depends, Request, Response
 from server.db import redis_sync as redis
 
 from .auth import user_registration
@@ -79,17 +78,17 @@ async def domain_list(request: Request, user: User = Depends(jwt_access_security
 
 
 @router.get("/config")
-async def get_config(request: Request):
+async def get_config(request: Request, language: str = "fa"):
+    # import json
+
+    # with open("config.json", "r") as f:
+    #     config = json.load(f)
+    # return config
     from apps.schemas.config import get_config_model
 
     website = await Website.get_by_origin(request.url.hostname)
-    config_model = get_config_model(website.config)
+    config_model = get_config_model(website.config, language)
     return config_model
-    import json
-
-    with open("config.json", "r") as f:
-        config = json.load(f)
-    return config
 
     user: User = await jwt_access_security_user_None(request=request)  # type: ignore[no-untyped-def]
     if not user or user.uid != website.user_uid:

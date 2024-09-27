@@ -1,10 +1,9 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel
-
 from apps.serializers.auth import BaseAuth
 from apps.serializers.jwt_auth import JWTResponse
+from pydantic import BaseModel
 
 
 class UserSerializer(BaseModel):

@@ -19,7 +19,11 @@
             }
         },
         "typography": {
-            "fontFamily": "Vazir, Arial, sans-serif"
+            "fontFamily": "Vazir, Arial, sans-serif",
+            "fontSize": 14,
+            "allVariants": {
+                "color": "#ff0000"
+            }
         }
     },
     "legal": {

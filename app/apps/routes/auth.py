@@ -5,12 +5,6 @@ import hmac
 from datetime import datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, Query, Request, Response, Security
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
-from requests_oauthlib import OAuth2Session
-from starlette.status import HTTP_201_CREATED
-
 from apps.middlewares.auth import create_basic_authenticator
 from apps.middlewares.jwt_auth import (
     get_email_secret_data_from_token,
@@ -26,7 +20,12 @@ from apps.serializers.auth import BaseAuth, ForgetPasswordData, OTPAuth
 from apps.serializers.jwt_auth import AccessToken
 from apps.serializers.user import UserSerializer
 from core.exceptions import BaseHTTPException
+from fastapi import APIRouter, Body, Depends, Query, Request, Response, Security
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
+from requests_oauthlib import OAuth2Session
 from server.db import redis_sync as redis
+from starlette.status import HTTP_201_CREATED
 
 router = APIRouter(prefix="/auth", tags=["Register"])
 
@@ -95,6 +94,8 @@ async def login(
 ) -> UserSerializer:  # type: ignore[no-untyped-def]
     """Authenticate and returns the user's JWT."""
     user = await User.login(b_auth)
+    if user is None:
+        raise BaseHTTPException(401, "unauthorized", language="fa")
     token = await jwt_response(user, request, response, refresh=True)
     return UserSerializer(token=token, **user.model_dump())
 
@@ -147,7 +148,8 @@ async def phone_otp_request(
     )
 
     return JSONResponse(
-        {"message": f"{len(otp)}-digit otp sms has sent"}, status_code=200
+        {"message": f"کد ورود برای شماره‌ی شما پیامک شد.", "length": len(otp)},
+        status_code=200,
     )
     # response.status_code = HTTP_201_CREATED
     # token = await jwt_response(user, request, response, refresh=True)

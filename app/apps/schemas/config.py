@@ -1,9 +1,8 @@
 from typing import Literal
 
+from apps.models.base import AuthMethod
 from pydantic import BaseModel, StringConstraints
 from typing_extensions import Annotated
-
-from apps.models.base import AuthMethod
 
 
 class ShapeModel(BaseModel):
@@ -12,17 +11,26 @@ class ShapeModel(BaseModel):
 
 class PaletteColorModel(BaseModel):
     main: Annotated[str, StringConstraints(pattern=r"^#(?:[0-9a-fA-F]{3}){1,2}$")]
+    # light: (
+    #     Annotated[str, StringConstraints(pattern=r"^#(?:[0-9a-fA-F]{3}){1,2}$")] | None
+    # ) = None
+    # dark: (
+    #     Annotated[str, StringConstraints(pattern=r"^#(?:[0-9a-fA-F]{3}){1,2}$")] | None
+    # ) = None
+    # contrastText: (
+    #     Annotated[str, StringConstraints(pattern=r"^#(?:[0-9a-fA-F]{3}){1,2}$")] | None
+    # ) = None
 
 
 class PaletteModel(BaseModel):
     primary: PaletteColorModel = PaletteColorModel(main="#dddddd")
     secondary: PaletteColorModel = PaletteColorModel(main="#aaaaaa")
-    text: PaletteColorModel = PaletteColorModel(main="#000000")
 
 
 class TypographyModel(BaseModel):
     fontFamily: str | None = None
     fontSize: int = 14
+    allVariants: dict[str, str] = {}
 
 
 class BrandingModel(BaseModel):
@@ -48,6 +56,8 @@ class SecretModel(BaseModel):
     placeholder: str
     description: str
     regex: str | None = None
+    error: str = "نا معتبر"
+    length: int | None = None
 
 
 class OptionModel(BaseModel):
@@ -57,7 +67,9 @@ class OptionModel(BaseModel):
     placeholder: str
     description: str
     regex: str | None = None
+    error: str = "نا معتبر"
     secrets: list[SecretModel]
+    success: str = "با موفقیت وارد شدید"
 
 
 class ProviderModel(BaseModel):
@@ -76,6 +88,7 @@ class CredentialModel(BaseModel):
 class LocalizationModel(BaseModel):
     languages: list[Literal["en", "fa"]] = ["fa"]
     default: Literal["en", "fa"] = "fa"
+    direction: Literal["ltr", "rtl"] = "rtl"
 
 
 class ConfigModel(BaseModel):
@@ -86,13 +99,15 @@ class ConfigModel(BaseModel):
     localization: LocalizationModel
 
 
-def get_config_methods(methods: list[AuthMethod]):
+def get_config_methods(
+    methods: list[AuthMethod], language: str = "fa"
+) -> list[ProviderModel | CredentialModel]:
     credentials: dict[str, list[SecretModel]] = {}
     providers: list[AuthMethod] = []
     for i, method in enumerate(methods):
         if method.is_credential:
             key = method.value.split("/")[0]
-            credentials.setdefault(key, []).append(method.get_secret_model())
+            credentials.setdefault(key, []).append(method.get_secret_model(language))
         else:
             providers.append(method)
 
@@ -102,16 +117,30 @@ def get_config_methods(methods: list[AuthMethod]):
         "phone": r"^(?:\+?98|0098|0)9[0-9]{9}$",
     }
 
+    if language == "fa":
+        placeholders = {
+            "email": "ایمیل",
+            "user": "نام کاربری",
+            "phone": "شماره تلفن",
+        }
+    else:
+        placeholders = {
+            "email": "Email",
+            "user": "Username",
+            "phone": "Phone Number",
+        }
+
     credential = CredentialModel(
         options=[
             OptionModel(
                 name=key,
                 api="/auth/1st-step",
                 identifier=key,
-                placeholder=key.capitalize(),
-                description=f"Enter your {key}",
+                placeholder=placeholders[key],
+                description=f"{placeholders[key]} خود را وارد کنید",
                 regex=regexes[key],
                 secrets=[c.model_dump() for c in credentials[key]],
+                error=f"{placeholders[key]} نا معتبر است",
             )
             for key in credentials
         ]
@@ -144,10 +173,10 @@ def get_branding_model(config):
     )
 
 
-def get_config_model(config):
+def get_config_model(config, language: str = "fa"):
     return ConfigModel(
         branding=config.branding if config.branding else get_branding_model(config),
         legal=config.legal if config.legal else LegalModel(),
-        methods=get_config_methods(config.available_methods),
+        methods=get_config_methods(config.available_methods, language),
         localization=LocalizationModel(),
     )

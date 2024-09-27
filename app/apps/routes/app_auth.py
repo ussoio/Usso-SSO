@@ -5,14 +5,13 @@ import hmac
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Request, Response
-from pydantic import BaseModel, field_validator
-
 from apps.middlewares.jwt_auth import jwt_response
 from apps.models.base import AuthMethod
 from apps.models.user import BasicAuthenticator, User
 from apps.serializers.jwt_auth import AccessToken
 from core.exceptions import BaseHTTPException
+from fastapi import APIRouter, Request, Response
+from pydantic import BaseModel, field_validator
 
 from .website import get_website
 

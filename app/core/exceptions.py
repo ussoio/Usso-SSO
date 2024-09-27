@@ -13,19 +13,44 @@ error_messages = {
     "invalid_signature": "Invalid signature",
     "website_not_found": "Website not found",
     "oath_failed": "Oauth authentication failed",
-    "no_edmail": "No email provided",
+    "no_email": "No email provided",
     "forbidden": "Forbidden",
     "user_not_found": "Requested user not found",
     "otp_not_found": "OTP not found",
     "credential_exists": "Credential already exists",
 }
 
+error_messages_fa = {
+    "invalid_email": "ایمیل نامعتبر است",
+    "invalid_password": "رمز عبور باید حداقل ۸ کاراکتر باشد و شامل حداقل یک عدد، یک حرف بزرگ، یک حرف کوچک و یک کاراکتر ویژه باشد",
+    "already_exists": "کاربر قبلا ثبت شده است",
+    "already_exists_wrong_secret": "کاربر قبلا ثبت شده است، یا رمز اشتباه است",
+    "not_active": "کاربر قبلا ثبت شده است اما فعال نیست",
+    "no_user": "کاربر یافت نشد",
+    "bad_origin": "مبدا یافت نشد",
+    "unauthorized": "کد وارد شده صحیح نیست",
+    "link_expired": "لینک منقضی شده است. لطفا دوباره تلاش کنید",
+    "expired_refresh_token": "نشست شما منقضی شده است. لطفا دوباره وارد شوید",
+    "expired_access_token": "دسترسی منقضی شده است. لطفا از توکن تازه سازی استفاده کنید",
+    "invalid_signature": "امضا نامعتبر است",
+    "website_not_found": "وبسایت یافت نشد",
+    "oath_failed": "احراز هویت از طریق اوتنتیکیشن ناموفق بود",
+    "no_email": "ایمیلی وارد نشده است",
+    "forbidden": "دسترسی غیر مجاز",
+    "user_not_found": "کاربر درخواستی یافت نشد",
+    "otp_not_found": "کد یکبار مصرف یافت نشد",
+    "credential_exists": "اعتبارنامه قبلا ثبت شده است",
+}
+
 
 class BaseHTTPException(Exception):
-    def __init__(self, status_code: int, error: str, message: str = None):
+    def __init__(self, status_code: int, error: str, message: str = None, **kwargs):
         self.status_code = status_code
         self.error = error
         self.message = message
         if message is None:
-            self.message = error_messages.get(error, error)
+            if kwargs.get("language") == "fa":
+                self.message = error_messages_fa.get(error, error)
+            else:
+                self.message = error_messages.get(error, error)
         super().__init__(message)

@@ -129,22 +129,25 @@ class AuthMethod(str, Enum):
             AuthMethod.phone_password: r"^(?:\+?98|0098|0)9[0-9]{9}$",
         }.get(self)
 
-    def get_secret_model(self):
+    def get_secret_model(self, language: str = "fa"):
         from apps.schemas.config import SecretModel
 
         password_secret_dict = {
             "api": "/auth/login",
             "name": "password",
             "type": "password",
-            "placeholder": "Password",
-            "description": "Enter your password",
+            "placeholder": "رمز عبور",
+            "description": "رمز عبور خود را وارد کنید",
+            "error": "رمز وارد شده صحیح نیست",
         }
         otp_secret_dict = {
             "api": "/auth/login",
             "name": "otp",
             "type": "otp",
-            "placeholder": "OTP",
-            "description": "Enter the OTP",
+            "placeholder": "کد ورود",
+            "description": "کد ورود را اینجا وارد کنید",
+            "error": "کد وارد شده صحیح نیست",
+            "length": 4 if self.value == "phone/otp" else 6,
         }
         link_secret_dict = {
             "api": "/auth/login",

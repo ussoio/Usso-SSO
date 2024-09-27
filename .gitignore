@@ -163,3 +163,4 @@ cython_debug/
 *.data
 secrets
 scripts
+app/web/*

@@ -6,9 +6,6 @@ from typing import Optional, Tuple
 
 import aiohttp
 import jwt
-from fastapi import Request, Response
-from starlette.status import HTTP_401_UNAUTHORIZED
-
 from apps.models.base import AuthMethod
 from apps.models.user import LoginSession, User
 from apps.models.website import Website
@@ -20,6 +17,8 @@ from apps.serializers.jwt_auth import (
     UserData,
 )
 from core.exceptions import BaseHTTPException
+from fastapi import Request, Response
+from starlette.status import HTTP_401_UNAUTHORIZED
 
 # from fastapi_jwt import JwtAuthorizationCredentials, JwtAccessBearer, JwtRefreshBearer
 
