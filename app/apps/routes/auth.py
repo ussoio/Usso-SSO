@@ -543,6 +543,7 @@ async def logout(
 
     response.delete_cookie("usso_access_available", domain=parent_domain, secure=True)
     response.delete_cookie("usso_access_token", domain=parent_domain, secure=True)
+    response.delete_cookie("usso_user_id", domain=parent_domain, secure=True)
     response.delete_cookie("usso_refresh_available", domain=parent_domain, secure=True)
     response.delete_cookie("usso_refresh_token", secure=True)
 

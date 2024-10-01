@@ -158,6 +158,15 @@ async def jwt_response(
         )
         if refresh:
             response.set_cookie(
+                key="usso_user_id",
+                value=user.uid[2:],
+                max_age=website.config.refresh_timeout,
+                domain=parent_domain,
+                samesite="lax",
+                # samesite="none",
+                secure=True,
+            )
+            response.set_cookie(
                 key="usso_refresh_token",
                 value=refresh_token,
                 httponly=True,
