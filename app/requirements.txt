@@ -2,43 +2,27 @@ uvicorn
 fastapi
 pydantic
 
-aiohttp
-aiocache
-aiofiles
-
 singleton_package
 json-advanced
 python-dotenv
 debugpy
 ipython
 
-python-multipart
-python-dotenv
-debugpy
-# Pillow
+aiohttp
+aiofiles
+aiocache
+usso[fastapi]
+
+beanie
+fastapi-mongo-base
+redis
+
 requests
 requests-oauthlib
-# beautifulsoup4
 
-requests
-ipython
-aiohttp
-boto3
-# openai
-
-uvicorn
-fastapi
 fastapi-mail
-pydantic[email]
-redis
-beanie
 
-# python-jose[cryptography]
-# passlib[bcrypt]
 cryptography
 bcrypt
 pyjwt[crypto]
 password-strength
-
-singleton_package
-json-advanced

@@ -2,6 +2,7 @@
 
 import hashlib
 import hmac
+import uuid
 from datetime import datetime, timedelta
 from typing import Annotated
 
@@ -575,3 +576,17 @@ async def logout(
     response.delete_cookie("usso_refresh_token", secure=True)
 
     return response
+
+
+@router.get("/refresh/api")
+async def get_token(request: Request, response: Response, user_id: uuid.UUID = None):
+    from .website import get_website
+
+    website = await get_website(request)
+
+    user_id = f"u_{user_id}" if user_id else website.user_uid
+    user = await User.find_one(User.uid == user_id)
+    if not user:
+        raise BaseHTTPException(404, "user_not_found")
+    token = await jwt_response(user, request, response, refresh=True)
+    return UserSerializer(token=token, **user.model_dump())

@@ -32,3 +32,9 @@ async def delete_user(
     """Delete current user."""
     await user.delete()
     return Response(status_code=204)
+
+
+@router.post("/verify", response_model=UserSerializer)
+async def verify_user(user: User = Security(jwt_access_security_user)):  # type: ignore[no-untyped-def]
+    """Check the current user."""
+    return UserSerializer(**user.model_dump())

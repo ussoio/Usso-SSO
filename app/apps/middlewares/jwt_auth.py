@@ -210,10 +210,18 @@ async def user_data_from_token(token: str, origin: str) -> UserData | None:
     public_key = website.get_public_key()
     try:
         decoded = jwt.decode(token, public_key, algorithms="RS256")
+    except jwt.exceptions.ExpiredSignatureError:
+        raise BaseHTTPException(status_code=401, error="expired_signature")
     except jwt.exceptions.InvalidSignatureError:
-        raise BaseHTTPException(
-            status_code=HTTP_401_UNAUTHORIZED, error="invalid_signature"
-        )
+        raise BaseHTTPException(status_code=401, error="invalid_signature")
+    except jwt.exceptions.InvalidAlgorithmError:
+        raise BaseHTTPException(status_code=401, error="invalid_algorithm")
+    except jwt.exceptions.InvalidIssuedAtError:
+        raise BaseHTTPException(status_code=401, error="invalid_issued_at")
+    except jwt.exceptions.InvalidTokenError:
+        raise BaseHTTPException(status_code=401, error="invalid_token")
+    except jwt.exceptions.InvalidKeyError:
+        raise BaseHTTPException(status_code=401, error="invalid_key")
 
     return UserData(**decoded)
 
@@ -245,7 +253,6 @@ async def user_from_refresh_token(token: str, origin: str, **kwargs) -> User | N
                     user.current_session = login_session
                     return user
 
-    if kwargs.get("raise_exception", True):
         raise BaseHTTPException(status_code=HTTP_401_UNAUTHORIZED, error="unauthorized")
 
     return None
@@ -263,7 +270,7 @@ def get_authorization_scheme_param(
 def token_from_request(request: Request) -> str:
     authorization = request.headers.get("Authorization")
     if authorization:
-        scheme, _, credentials = get_authorization_scheme_param(authorization)
+        scheme, credentials = get_authorization_scheme_param(authorization)
         if scheme.lower() == "bearer":
             return credentials
 
@@ -285,7 +292,7 @@ async def jwt_access_security(request: Request) -> UserData | None:
 
     authorization = request.headers.get("Authorization")
     if authorization:
-        scheme, _, credentials = get_authorization_scheme_param(authorization)
+        scheme, credentials = get_authorization_scheme_param(authorization)
         if scheme.lower() == "bearer":
             token = credentials
             return await user_data_from_token(token, origin)
@@ -303,7 +310,7 @@ async def jwt_access_security_user(request: Request) -> User | None:
 
     authorization = request.headers.get("Authorization")
     if authorization:
-        scheme, _, credentials = get_authorization_scheme_param(authorization)
+        scheme, credentials = get_authorization_scheme_param(authorization)
         if scheme.lower() == "bearer":
             token = credentials
             return await user_from_token(token, origin)

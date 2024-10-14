@@ -46,6 +46,7 @@ class OTPAuth(BaseModel):
 
     @field_validator("phone", mode="before")
     def validate_phone(cls, v):
+        v = str_tools.convert_to_english_digits(v)
         if not str_tools.is_valid_mobile(v):
             raise ValueError("phone number is not valid")
         v = str_tools.format_mobile(v)
