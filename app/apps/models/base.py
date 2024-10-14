@@ -125,8 +125,8 @@ class AuthMethod(str, Enum):
             AuthMethod.email_link: r"^[a-zA-Z\._]+@[a-zA-Z0-9\.-_]+\.[a-zA-Z]{2,}$",
             AuthMethod.email_otp: r"^[a-zA-Z\._]+@[a-zA-Z0-9\.-_]+\.[a-zA-Z]{2,}$",
             AuthMethod.user_password: r"^[a-zA-Z_][a-zA-Z0-9_]{2,16}$",
-            AuthMethod.phone_otp: r"^(?:\+?98|0098|0|۹۸|۰۰۹۸|۰)9۹[0-9۰-۹]{9}$",
-            AuthMethod.phone_password: r"^(?:\+?98|0098|0|۹۸|۰۰۹۸|۰)9۹[0-9۰-۹]{9}$",
+            AuthMethod.phone_otp: r"^(?:\+?98|0098|0|۹۸|۰۰۹۸|۰)9|۹[0-9۰-۹]{9}$",
+            AuthMethod.phone_password: r"^(?:\+?98|0098|0|۹۸|۰۰۹۸|۰)9|۹[0-9۰-۹]{9}$",
         }.get(self)
 
     def get_secret_model(self, language: str = "fa"):
