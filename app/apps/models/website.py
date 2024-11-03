@@ -161,6 +161,7 @@ class Website(Document, base.BaseDBModel):
             return cls(**json.loads(website, object_hook=utility.json_deserializer))
         website = await cls.find_one(cls.origin == origin)
         if not website:
+            raise ValueError("Website not found.")
             website = await cls(origin=origin, user_uid="123").save()
             # return website
 
@@ -269,6 +270,9 @@ class Website(Document, base.BaseDBModel):
             algorithm="RS256",
             headers={
                 "kid": self.generate_kid(),
+                "typ": "JWT",
+                "alg": "RS256",
+                "host": self.origin,
             },
         )
         return encoded

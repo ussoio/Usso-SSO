@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import uuid
 from datetime import datetime
+from urllib.parse import urlparse
 
 from apps.middlewares.jwt_auth import jwt_response
 from apps.models.base import AuthMethod
@@ -65,6 +66,10 @@ class AppAuth(BaseModel):
         return v
 
     @property
+    def sso_hostname(self):
+        return urlparse(self.sso_url).hostname
+
+    @property
     def hash_key_part(self):
         scopes_hash = hashlib.sha256("".join(self.scopes).encode()).hexdigest()
         return f"{self.app_id}{scopes_hash}{self.timestamp}{self.sso_url}"
@@ -116,6 +121,10 @@ async def access(
     # TODO check if app_auth.sso_url is in the list of websites that the api-os has access to
 
     # create access token
+    import logging
+
+    logging.info(app_auth.sso_url)
+    origin = app_auth.sso_hostname
     token = await jwt_response(
         app,
         request,
@@ -123,6 +132,6 @@ async def access(
         refresh=False,
         scopes=app_auth.scopes,
         app_id=auth.representor,
-        origin=app_auth.sso_url,
+        origin=origin,
     )
     return AccessToken(**token.model_dump())

@@ -52,6 +52,11 @@ class OTPAuth(BaseModel):
         v = str_tools.format_mobile(v)
         return v
 
+    @field_validator("otp", mode="before")
+    def validate_otp(cls, v):
+        v = str_tools.convert_to_english_digits(v)
+        return v
+
 
 class GoogleAuth(BaseModel):
     code: str

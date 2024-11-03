@@ -3,7 +3,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class JWTMode(str, Enum):
@@ -22,6 +22,8 @@ class UserData(BaseModel):
 
 class JWTPayload(BaseModel):
     user_id: str
+    workspace_id: str
+    workspace_ids: list[str] = []
     iat: int = Field(default_factory=lambda: int(datetime.utcnow().timestamp()))
     exp: int | None = None
     jti: str = Field(default_factory=lambda: f"jti_{uuid.uuid4()}")
@@ -33,13 +35,22 @@ class JWTPayload(BaseModel):
 
     email: str | None = None
     phone: str | None = None
+    username: str | None = None
     authentication_method: str | None = None
     is_active: bool = False
 
     scopes: list[str] | None = None
     app_id: str | None = None
 
-    # @model_validator(mode="before")
+    @model_validator(mode="before")
+    def validate_workspace(cls, values: dict[str, Any]):
+        if not values.get("workspace_id"):
+            if not values.get("workspace_ids"):
+                values["workspace_id"] = values.get("user_id")
+            else:
+                values["workspace_id"] = values["workspace_ids"][0]
+        return values
+
     # def validate_data(cls, values):
     #     if values.get("jwk_url") is None:
     #         values["jwk_url"] = "https://" + (

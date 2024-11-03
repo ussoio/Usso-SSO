@@ -1,9 +1,8 @@
 import random
 import re
 import string
-from functools import lru_cache
 import unicodedata
-
+from functools import lru_cache
 
 username_regex = re.compile(r"^[a-z]")
 national_code_regex = re.compile(r"^\d{10}$")
