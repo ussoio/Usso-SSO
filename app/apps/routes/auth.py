@@ -1,5 +1,5 @@
 """Registration router."""
-
+import os
 import hashlib
 import hmac
 import uuid
@@ -496,8 +496,7 @@ async def telegram_callback(
     data_check_string = "\n".join(
         sorted(f"{x}={y}" for x, y in params if x not in ("hash", "next"))
     )
-    BOT_TOKEN = "7433865271:AAFARu9F-E-G23waNIZkwquo5YQ_jFK4pyA"
-    BOT_TOKEN_HASH = hashlib.sha256(BOT_TOKEN.encode())
+    BOT_TOKEN_HASH = hashlib.sha256(os.getenv("TELEGRAM_BOT_TOKEN").encode())
     computed_hash = hmac.new(
         BOT_TOKEN_HASH.digest(), data_check_string.encode(), "sha256"
     ).hexdigest()
