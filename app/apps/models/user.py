@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Tuple
 
+from apps.api_key.schemas import APIKeySchema
 from apps.models import base
 from apps.models.website import Website
 from apps.util import password, sms, str_tools, utility
@@ -223,6 +224,8 @@ class User(Document, base.BaseDBModel):
     name: str | None = None
     username: str | None = None
     website_uid: str | None = None
+    workspace_id: str | None = None
+    workspace_ids: list[str] = []
     authenticators: list[UserAuthenticator] = []
     current_authenticator: UserAuthenticator | None = Field(default=None, exclude=True)
     current_session: LoginSession | None = Field(default=None, exclude=True)
@@ -230,6 +233,7 @@ class User(Document, base.BaseDBModel):
     is_active: bool = False
     login_sessions: list[LoginSession] = []
     data: dict[str, Any] = {}
+    api_keys: dict[str, APIKeySchema] = []
     history: list[dict[str, Any]] = []
 
     # auth: UserAuthenticator = field(init=False, default=None)  # type: ignore

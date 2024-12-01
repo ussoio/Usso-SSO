@@ -1,7 +1,8 @@
 """Registration router."""
-import os
+
 import hashlib
 import hmac
+import os
 import uuid
 from datetime import datetime, timedelta
 from typing import Annotated
@@ -589,3 +590,8 @@ async def get_token(request: Request, response: Response, user_id: uuid.UUID = N
         raise BaseHTTPException(404, "user_not_found")
     token = await jwt_response(user, request, response, refresh=True)
     return UserSerializer(token=token, **user.model_dump())
+
+
+# @router.get("/cookies", include_in_schema=False)
+# async def cookies(request: Request):
+#     return dict(request.cookies)
