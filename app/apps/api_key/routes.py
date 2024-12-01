@@ -3,16 +3,20 @@ from apps.models.user import User
 from core.exceptions import BaseHTTPException
 from fastapi import APIRouter, Body, Depends, status
 
-from .schemas import APIKeyCreateResponseSchema, APIKeySchema, APIKeyVerifySchema
+from .schemas import (
+    APIKeyCreateResponseSchema,
+    APIKeyResponseSchema,
+    APIKeyVerifySchema,
+)
 from .services import add_api_key, get_user_by_api_key, remove_api_key
 
 router = APIRouter(prefix="/api_key", tags=["API Key"])
 
 
-@router.get("/", response_model=list[APIKeySchema])
+@router.get("/", response_model=list[APIKeyResponseSchema])
 async def get_api_keys(
     user: User = Depends(jwt_access_security_user),
-) -> list[APIKeySchema]:
+) -> list[APIKeyResponseSchema]:
     """
     Get all API keys.
     """
@@ -44,16 +48,25 @@ async def verify_api_key(api_key: str = Body(embed=True)) -> APIKeyVerifySchema:
             message="Invalid API key",
         )
 
-    return APIKeyVerifySchema(user_id=user.uid[2:], **key.model_dump())
+    key_data = key.model_dump()
+    key_data["user_id"] = str(user.user_id)
+    return APIKeyVerifySchema(**key_data, token_type="api_key")
 
 
 @router.delete("/{postfix:str}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_api_key(
     postfix: str,
     user: User = Depends(jwt_access_security_user),
-) -> APIKeyCreateResponseSchema:
+) -> None:
     """
     Create an API key.
     """
 
-    return await remove_api_key(user, postfix)
+    try:
+        await remove_api_key(user, postfix)
+    except KeyError:
+        raise BaseHTTPException(
+            status_code=404, error="api_key_not_found", message="API key not found"
+        )
+    except Exception:
+        raise

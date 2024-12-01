@@ -1,4 +1,6 @@
+import logging
 import uuid
+from datetime import datetime
 
 import bcrypt
 from apps.models.user import User
@@ -19,7 +21,8 @@ def generate_api_key(uid: uuid.UUID, length: int = 64):
 def generate_unique_api_key(user: User, length: int = 64):
     """Generate a unique API key with a unique postfix."""
     for i in range(100000):
-        raw_key, hashed_key, pattern, postfix = generate_api_key(user.uid, length)
+        logging.info(f"Generating API key {user.user_id}, {user}")
+        raw_key, hashed_key, pattern, postfix = generate_api_key(user.user_id, length)
         if postfix not in user.api_keys:
             return raw_key, hashed_key, pattern, postfix
     raise ValueError("Failed to generate a unique API key")
@@ -27,7 +30,12 @@ def generate_unique_api_key(user: User, length: int = 64):
 
 async def add_api_key(user: User, length: int = 64) -> APIKeyCreateResponseSchema:
     raw_key, hashed_key, pattern, postfix = generate_unique_api_key(user, length)
-    key = APIKeySchema(hashed_key=hashed_key, api_key_pattern=pattern, postfix=postfix)
+    key = APIKeySchema(
+        user_id=user.user_id,
+        hashed_key=hashed_key,
+        api_key_pattern=pattern,
+        postfix=postfix,
+    )
     user.api_keys[postfix] = key
     await user.save()
 
@@ -37,12 +45,17 @@ async def add_api_key(user: User, length: int = 64) -> APIKeyCreateResponseSchem
 
 async def get_user_by_api_key(api_key: str) -> tuple[User, APIKeySchema]:
     uid_pos = api_key.find("_")
-    uid = b64_decode_uuid(api_key[uid_pos : uid_pos + 22])
+    uid = b64_decode_uuid(api_key[uid_pos + 1 : uid_pos + 23])
     user = await User.find_one({"uid": f"u_{uid}"})
+    logging.info(f"uid: {uid} {type(uid)} {user}")
+    if not user:
+        return None, None
     postfix = api_key[-3:]
 
     key = user.api_keys.get(postfix)
     if key and bcrypt.checkpw(api_key.encode("utf-8"), key.hashed_key):
+        key.last_used_at = datetime.now()
+        await user.save()
         return user, key
 
     return None, None

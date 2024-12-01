@@ -1,12 +1,12 @@
 from datetime import datetime
 
-from fastapi_mongo_base.schemas import BusinessOwnedEntitySchema
+from fastapi_mongo_base.schemas import OwnedEntitySchema
 from pydantic import Field
 from usso import UserData
 
 
-class APIKeySchema(BusinessOwnedEntitySchema):
-    hashed_key: str
+class APIKeySchema(OwnedEntitySchema):
+    hashed_key: bytes
     api_key_pattern: str
     postfix: str
     scopes: list[str] = []
@@ -15,7 +15,7 @@ class APIKeySchema(BusinessOwnedEntitySchema):
     last_used_at: datetime | None = None  # Last time the key was used
 
 
-class APIKeyResponseSchema(BusinessOwnedEntitySchema):
+class APIKeyResponseSchema(OwnedEntitySchema):
     api_key_pattern: str
     postfix: str
     scopes: list[str] = []

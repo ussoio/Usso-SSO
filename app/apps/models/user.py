@@ -233,10 +233,29 @@ class User(Document, base.BaseDBModel):
     is_active: bool = False
     login_sessions: list[LoginSession] = []
     data: dict[str, Any] = {}
-    api_keys: dict[str, APIKeySchema] = []
+    api_keys: dict[str, APIKeySchema] = {}
     history: list[dict[str, Any]] = []
 
     # auth: UserAuthenticator = field(init=False, default=None)  # type: ignore
+
+    @property
+    def user_id(self) -> uuid.UUID:
+        from usso import b64tools
+
+        user_id = self.uid
+
+        if user_id.startswith("u_"):
+            user_id = user_id[2:]
+        if 22 <= len(user_id) <= 24:
+            user_id = b64tools.b64_decode_uuid(user_id)
+
+        return uuid.UUID(user_id)
+
+    @property
+    def b64id(self) -> uuid.UUID:
+        from usso import b64tools
+
+        return b64tools.b64_encode_uuid_strip(self.uid)
 
     class Settings:
         # use_cache = True
