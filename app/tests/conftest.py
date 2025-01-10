@@ -7,11 +7,10 @@ import debugpy
 import httpx
 import pytest
 import pytest_asyncio
+from apps.models import user, website
 from beanie import init_beanie
 from redis import Redis as RedisSync
 from redis.asyncio.client import Redis
-
-from apps.models import user, website
 from server.config import Settings
 from server.server import app as fastapi_app
 

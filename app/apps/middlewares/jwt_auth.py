@@ -6,10 +6,6 @@ from typing import Optional, Tuple
 
 import httpx
 import jwt
-from fastapi import Request, Response
-from fastapi_mongo_base.core.exceptions import BaseHTTPException
-from starlette.status import HTTP_401_UNAUTHORIZED
-
 from apps.models.base import AuthMethod
 from apps.models.user import LoginSession, User
 from apps.models.website import Website
@@ -20,6 +16,9 @@ from apps.serializers.jwt_auth import (
     JWTResponse,
     UserData,
 )
+from fastapi import Request, Response
+from fastapi_mongo_base.core.exceptions import BaseHTTPException
+from starlette.status import HTTP_401_UNAUTHORIZED
 
 # from fastapi_jwt import JwtAuthorizationCredentials, JwtAccessBearer, JwtRefreshBearer
 
@@ -80,7 +79,7 @@ async def get_location(ip_address):
     async with httpx.AsyncClient() as client:
         response = await client.get(f"https://ipapi.co/{ip_address}/json/")
         if response.status_code == 200:
-            data = await response.json()
+            data = response.json()
             location_data = {
                 "ip": ip_address,
                 "city": data.get("city"),

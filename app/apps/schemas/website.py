@@ -1,7 +1,6 @@
-from pydantic import BaseModel
-
 from apps.models.base import AuthMethod
 from apps.models.website import WebsiteConfig
+from pydantic import BaseModel
 
 
 class AnonConfig(BaseModel):

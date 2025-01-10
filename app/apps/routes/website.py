@@ -3,18 +3,16 @@
 import base64
 import logging
 
-from fastapi import APIRouter, Depends, Request, Response
-from fastapi_mongo_base.core.exceptions import BaseHTTPException
-
 from apps.middlewares.jwt_auth import (
     jwt_access_security_user,
     jwt_access_security_user_None,
 )
 from apps.models.user import BasicAuthenticator, User
 from apps.models.website import Website, WebsiteConfig
-from apps.schemas.website import AnonConfig
 from apps.serializers.website import JWKS, RSAJWK
 from apps.serializers.website_user import AuthenticatorDTO
+from fastapi import APIRouter, Depends, Request, Response
+from fastapi_mongo_base.core.exceptions import BaseHTTPException
 from server.db import redis_sync as redis
 
 from .auth import user_registration

@@ -6,13 +6,12 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Any, Tuple
 
-from fastapi_mongo_base.models import BaseEntity
-from pydantic import BaseModel, Field
-
 from apps.api_key.schemas import APIKeySchema
 from apps.models import base
 from apps.models.website import Website
 from apps.util import password, sms, str_tools, utility
+from fastapi_mongo_base.models import BaseEntity
+from pydantic import BaseModel, Field
 
 
 class BasicAuthenticator(base.BaseDBModel):

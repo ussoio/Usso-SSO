@@ -1,23 +1,23 @@
 import hashlib
 import json
 from datetime import datetime, timezone
+import logging
 from typing import Annotated
 
 import dotenv
 import httpx
 import jwt
+from apps.models import base
+from apps.schemas.config import BrandingModel, LegalModel
+from apps.util import str_tools, utility
 from beanie import Indexed
 from cryptography.hazmat.backends import default_backend as crypto_default_backend
 from cryptography.hazmat.primitives import serialization as crypto_serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 from fastapi_mongo_base.models import BaseEntity
-from json_advanced import dumps
+from json_advanced import dumps, loads
 from pydantic import BaseModel, EmailStr, field_validator, model_validator
-
-from apps.models import base
-from apps.schemas.config import BrandingModel, LegalModel
-from apps.util import str_tools, utility
 from server.config import Settings
 
 dotenv.load_dotenv()
@@ -165,9 +165,9 @@ class Website(base.BaseDBModel, BaseEntity):
         from server.db import redis_sync as redis
 
         redis_key = f"{cls.__name__}:{origin}"
-        website = redis.get(redis_key)
-        if website:
-            return cls(**json.loads(website, object_hook=utility.json_deserializer))
+        # website = redis.get(redis_key)
+        # if website:
+        #     return cls(**loads(website))
         website = await cls.find_one(cls.origin == origin)
         if not website:
             raise ValueError("Website not found.")

@@ -3,10 +3,9 @@ import uuid
 from datetime import datetime
 
 import bcrypt
-from usso.b64tools import b64_decode_uuid, b64_encode_uuid_strip
-
 from apps.models.user import User
 from apps.util.str_tools import generate_random_chars
+from usso.b64tools import b64_decode_uuid, b64_encode_uuid_strip
 
 from .schemas import APIKeyCreateResponseSchema, APIKeySchema
 

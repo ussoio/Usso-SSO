@@ -20,24 +20,11 @@ async def send_kavenegar_template_async(
     phone: str, template: str, token: str, api_key: str = KAVENEGAR_API_KEY
 ):
     kavenegar = f"https://api.kavenegar.com/v1/{api_key}/verify/lookup.json"
-    params = {
-        "receptor": phone,
-        "token": token,
-        "template": template,
-    }
-
-    ssl = True
-    for _ in range(3):
-        try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(total=10)) as client:
-                response = await client.get(kavenegar, ssl=ssl, params=params)
-                response.raise_for_status()
-                return await response.json()
-
-        except httpx.ClientError as e:
-            if not isinstance(e, httpx.ClientSSLError):
-                return
-        ssl = False
+    params = {"receptor": phone, "token": token, "template": template}
+    async with httpx.AsyncClient() as client:
+        response = await client.get(kavenegar, params=params)
+        response.raise_for_status()
+        return response.json()
 
 
 async def send_kavenegar_async(phone: str, text: str, **kwargs):
@@ -51,24 +38,12 @@ async def send_kavenegar_async(phone: str, text: str, **kwargs):
             phone, kavenegar_template, text, kavenegar_api_key
         )
     kavenegar = f"https://api.kavenegar.com/v1/{kavenegar_api_key}/sms/send.json"
-    params = {
-        "receptor": phone,
-        "message": text,
-        "sender": "100088008088",
-    }
+    params = {"receptor": phone, "message": text, "sender": "100088008088"}
 
-    ssl = True
-    for _ in range(3):
-        try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(total=10)) as client:
-                response = await client.get(kavenegar, ssl=ssl, params=params)
-                response.raise_for_status()
-                return await response.json()
-
-        except httpx.ClientError as e:
-            if not isinstance(e, httpx.ClientSSLError):
-                return
-        ssl = False
+    async with httpx.AsyncClient() as client:
+        response = await client.get(kavenegar, params=params)
+        response.raise_for_status()
+        return await response.json()
 
 
 async def send_infobip_async(phone: str, text: str, **kwargs):
@@ -91,7 +66,7 @@ async def send_infobip_async(phone: str, text: str, **kwargs):
 
     async with httpx.AsyncClient() as client:
         response = await client.post(send_url, data=payload, headers=headers)
-        data = await response.text()
+        data = response.text
         print(data)
 
 
@@ -105,7 +80,6 @@ def send_message(phone: str, text: str, **kwargs):
     asyncio.run(send_sms_async(phone, text, **kwargs))
 
 
-# @shared_task
 def send_message_task(phone: str, text: str, **kwargs):
     send_message(phone, text, **kwargs)
 
@@ -118,7 +92,7 @@ class Kavenegar(metaclass=singleton.Singleton):
         pass
 
     def send_message(self, phone: str, text: str):
-        send_message_task.delay(phone, text)
+        send_message_task(phone, text)
 
 
 # Default requests timeout in seconds.
