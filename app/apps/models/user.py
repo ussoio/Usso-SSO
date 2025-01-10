@@ -9,8 +9,9 @@ from typing import Any, Tuple
 from apps.api_key.schemas import APIKeySchema
 from apps.models import base
 from apps.models.website import Website
-from apps.util import password, sms, str_tools, utility
+from apps.util import password, sms, utility
 from fastapi_mongo_base.models import BaseEntity
+from fastapi_mongo_base.utils import texttools
 from pydantic import BaseModel, Field
 
 
@@ -161,7 +162,7 @@ class UserAuthenticator(BasicAuthenticator):
             return
 
         phone = self.representor
-        self.secret = str_tools.generate_random_chars(length, "1234567890")
+        self.secret = texttools.generate_random_chars(length, "1234567890")
         if not test:
             await sms.send_sms_async(phone, text.format(otp=self.secret), **kwargs)
         redis.set(
@@ -323,7 +324,7 @@ class User(base.BaseDBModel, BaseEntity):
     ):
         user, auth = await cls.get_user_by_auth(b_auth, **kwargs)
         if user is None or auth is None:
-            password.check_password(str_tools.generate_random_chars(4, "1234567890"))
+            password.check_password(texttools.generate_random_chars(4, "1234567890"))
             return None
         if not await auth.authenticate(b_auth.secret, **kwargs):
             return None

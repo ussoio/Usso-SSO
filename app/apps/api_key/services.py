@@ -4,14 +4,16 @@ from datetime import datetime
 
 import bcrypt
 from apps.models.user import User
-from apps.util.str_tools import generate_random_chars
+from fastapi_mongo_base.utils import texttools
 from usso.b64tools import b64_decode_uuid, b64_encode_uuid_strip
 
 from .schemas import APIKeyCreateResponseSchema, APIKeySchema
 
 
 def generate_api_key(uid: uuid.UUID, length: int = 64):
-    raw_key = f"uak_{b64_encode_uuid_strip(uid)}_{generate_random_chars(length)}"
+    raw_key = (
+        f"uak_{b64_encode_uuid_strip(uid)}_{texttools.generate_random_chars(length)}"
+    )
     hashed_key = bcrypt.hashpw(raw_key.encode("utf-8"), bcrypt.gensalt())
     postfix = raw_key[-3:]
     pattern = f'{raw_key[:6]}{"*"*30}{postfix}'

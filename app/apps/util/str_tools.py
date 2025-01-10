@@ -1,6 +1,5 @@
 import random
 import re
-import string
 import unicodedata
 from functools import lru_cache
 
@@ -97,8 +96,3 @@ def user_buy(code):
 
 def user_temp(user_id, key):
     return f"USERTEMP_{user_id}_{key}"
-
-
-def generate_random_chars(length=6, characters=string.ascii_letters + string.digits):
-    # Generate the random characters
-    return "".join(random.choices(characters, k=length))
