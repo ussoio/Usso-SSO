@@ -1,7 +1,8 @@
+from fastapi import APIRouter, Body, Depends, status
+from fastapi_mongo_base.core.exceptions import BaseHTTPException
+
 from apps.middlewares.jwt_auth import jwt_access_security_user
 from apps.models.user import User
-from core.exceptions import BaseHTTPException
-from fastapi import APIRouter, Body, Depends, status
 
 from .schemas import (
     APIKeyCreateResponseSchema,

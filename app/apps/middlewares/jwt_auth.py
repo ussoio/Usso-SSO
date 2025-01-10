@@ -4,8 +4,12 @@ import base64
 from datetime import UTC, datetime, timedelta
 from typing import Optional, Tuple
 
-import aiohttp
+import httpx
 import jwt
+from fastapi import Request, Response
+from fastapi_mongo_base.core.exceptions import BaseHTTPException
+from starlette.status import HTTP_401_UNAUTHORIZED
+
 from apps.models.base import AuthMethod
 from apps.models.user import LoginSession, User
 from apps.models.website import Website
@@ -16,9 +20,6 @@ from apps.serializers.jwt_auth import (
     JWTResponse,
     UserData,
 )
-from core.exceptions import BaseHTTPException
-from fastapi import Request, Response
-from starlette.status import HTTP_401_UNAUTHORIZED
 
 # from fastapi_jwt import JwtAuthorizationCredentials, JwtAccessBearer, JwtRefreshBearer
 
@@ -45,6 +46,7 @@ async def get_token(user: User, website: Website, token_type: JWTMode, **kwargs)
                 if token_type == JWTMode.ACCESS
                 else website.config.refresh_timeout
             )
+            + 24 * 60 * 60 * kwargs.get("days", 0)
         ),
         # origin=website.origin,
         # jwk_url=f'https://{website.origin}/website/jwks.json',
@@ -75,22 +77,22 @@ async def answer_jwt_in_cookie(request: Request):
 
 
 async def get_location(ip_address):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(f"https://ipapi.co/{ip_address}/json/") as response:
-            if response.status == 200:
-                data = await response.json()
-                location_data = {
-                    "ip": ip_address,
-                    "city": data.get("city"),
-                    "region": data.get("region"),
-                    "country": data.get("country_name"),
-                    "location": f'{data.get("country_name", "")}, {data.get("region", "")}, {data.get("city", "")}',
-                    "latitude": data.get("latitude"),
-                    "longitude": data.get("longitude"),
-                }
-                return location_data
-            else:
-                return {"error": "Failed to get location data"}
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"https://ipapi.co/{ip_address}/json/")
+        if response.status_code == 200:
+            data = await response.json()
+            location_data = {
+                "ip": ip_address,
+                "city": data.get("city"),
+                "region": data.get("region"),
+                "country": data.get("country_name"),
+                "location": f'{data.get("country_name", "")}, {data.get("region", "")}, {data.get("city", "")}',
+                "latitude": data.get("latitude"),
+                "longitude": data.get("longitude"),
+            }
+            return location_data
+        else:
+            return {"error": "Failed to get location data"}
 
 
 async def jwt_response(

@@ -7,6 +7,13 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Annotated
 
+from fastapi import APIRouter, Body, Depends, Query, Request, Response, Security
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi_mongo_base.core.exceptions import BaseHTTPException
+from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
+from requests_oauthlib import OAuth2Session
+from starlette.status import HTTP_201_CREATED
+
 from apps.middlewares.auth import create_basic_authenticator
 from apps.middlewares.jwt_auth import (
     get_email_secret_data_from_token,
@@ -21,13 +28,7 @@ from apps.models.website import Website
 from apps.serializers.auth import BaseAuth, ForgetPasswordData, OTPAuth
 from apps.serializers.jwt_auth import AccessToken
 from apps.serializers.user import UserSerializer
-from core.exceptions import BaseHTTPException
-from fastapi import APIRouter, Body, Depends, Query, Request, Response, Security
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
-from requests_oauthlib import OAuth2Session
 from server.db import redis_sync as redis
-from starlette.status import HTTP_201_CREATED
 
 router = APIRouter(prefix="/auth", tags=["Register"])
 
@@ -595,3 +596,14 @@ async def get_token(request: Request, response: Response, user_id: uuid.UUID = N
 # @router.get("/cookies", include_in_schema=False)
 # async def cookies(request: Request):
 #     return dict(request.cookies)
+
+
+@router.get("/long-token", include_in_schema=False)
+async def cookies(
+    request: Request,
+    response: Response,
+    days: int = 30,
+    user: User = Depends(jwt_access_security_user),
+):
+    token = await jwt_response(user, request, response, days=days, refresh=False)
+    return AccessToken(**token.model_dump())

@@ -1,7 +1,8 @@
 import fastapi
-from apps.models.website import Website
 from fastapi.responses import PlainTextResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+
+from apps.models.website import Website
 
 origins = {"http://localhost", "http://localhost:3000"}
 

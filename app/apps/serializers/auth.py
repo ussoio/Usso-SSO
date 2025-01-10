@@ -1,6 +1,7 @@
+from pydantic import BaseModel, EmailStr, field_validator
+
 from apps.models.base import AuthMethod
 from apps.util import password, str_tools
-from pydantic import BaseModel, EmailStr, field_validator
 
 
 class BaseAuth(BaseModel):

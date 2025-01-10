@@ -1,19 +1,23 @@
 import hashlib
 import json
+from datetime import datetime, timezone
 from typing import Annotated
 
 import dotenv
+import httpx
 import jwt
-from apps.models import base
-from apps.schemas.config import BrandingModel, LegalModel
-from apps.util import str_tools, utility
-from beanie import Document, Indexed
+from beanie import Indexed
 from cryptography.hazmat.backends import default_backend as crypto_default_backend
 from cryptography.hazmat.primitives import serialization as crypto_serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
+from fastapi_mongo_base.models import BaseEntity
 from json_advanced import dumps
 from pydantic import BaseModel, EmailStr, field_validator, model_validator
+
+from apps.models import base
+from apps.schemas.config import BrandingModel, LegalModel
+from apps.util import str_tools, utility
 from server.config import Settings
 
 dotenv.load_dotenv()
@@ -58,6 +62,8 @@ class WebsiteConfig(base.BaseDBModel):
         base.AuthMethod.google,
         base.AuthMethod.email_password,
     ]
+    register_webhook: str | None = None
+    register_webhook_headers: dict | None = None
 
     @field_validator("logo")
     def validate_logo(cls, v):
@@ -126,13 +132,16 @@ class WebsiteSecrets(base.BaseDBModel):
     #     return WebsiteSMTP(**v)
 
 
-class Website(Document, base.BaseDBModel):
+class Website(base.BaseDBModel, BaseEntity):
     origin: Annotated[str, Indexed(str, unique=True)]
     api_key: Annotated[str, Indexed(str, unique=True)]
     user_uid: Annotated[str, Indexed(str)]
     config: WebsiteConfig = WebsiteConfig()
     secrets: WebsiteSecrets = WebsiteSecrets()
     custom_claims: dict = {}
+
+    class Settings:
+        indexes = BaseEntity.Settings.indexes
 
     # class Settings:
     #     use_cache = True
@@ -250,6 +259,25 @@ class Website(Document, base.BaseDBModel):
         await self.__send_template_email(
             self.config.email_reset_template, subject, email, url=url
         )
+
+    async def send_webhook(self, data: dict, event_type: str, model: str):
+        if not self.config.register_webhook:
+            return
+
+        now = datetime.now(timezone.utc)
+        data = {
+            "data": data,
+            "event_type": event_type,
+            "model": model,
+            "timestamp": now.isoformat(),
+            "website_id": self.id,
+        }
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                self.config.register_webhook,
+                headers=self.config.register_webhook_headers,
+                json=data,
+            )
 
     def get_token(self, payload: dict) -> str:
         pem_bytes = self.secrets.rsa_priv

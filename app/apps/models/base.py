@@ -60,21 +60,7 @@ class BaseDBModel(BaseModel):
 
     @classmethod
     async def get_by_uid(cls, uid: str) -> Optional["BaseDBModel"]:
-        # from server.db import redis_sync as redis
-
-        # """Get a model by uid."""
-        # redis_key = f"{cls.__name__}:{uid}"
-        # item_str = redis.get(redis_key)
-        # if item_str:
-        #     return cls(**json.loads(item, object_hook=utility.json_deserializer))
         item = await cls.find_one(cls.uid == uid, cls.is_deleted == False)
-        # if not item:
-        #     return None
-        # redis.set(
-        #     redis_key,
-        #     json.dumps(item.model_dump(), cls=utility.JSONSerializer),
-        #     ex=60 * 20,
-        # )
         return item
 
     @classmethod
@@ -87,17 +73,6 @@ class BaseDBModel(BaseModel):
         """Check if a model exists by uid."""
         item = await cls.get_by_uid(uid)
         item.delete()
-
-    # async def delete(self) -> None:
-    #     self.is_deleted = True
-    #     redis.delete(f"{self.__class__.__name__}:{self.uid}")
-    #     await self.update()
-
-    # async def update(self) -> None:
-    #     """Save a model."""
-    #     self.updated_at = datetime.utcnow()
-    #     await super().update()
-    #     redis.set(f"{self.__class__.__name__}:{self.uid}", json.dumps(self.model_dump()))
 
 
 class AuthMethod(str, Enum):

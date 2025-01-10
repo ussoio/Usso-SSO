@@ -2,8 +2,8 @@ import asyncio
 import json
 import os
 
-import aiohttp
 import dotenv
+import httpx
 import requests
 import singleton
 
@@ -29,15 +29,13 @@ async def send_kavenegar_template_async(
     ssl = True
     for _ in range(3):
         try:
-            async with aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=10)
-            ) as session:
-                async with session.get(kavenegar, ssl=ssl, params=params) as response:
-                    response.raise_for_status()
-                    return await response.json()
+            async with httpx.AsyncClient(timeout=httpx.Timeout(total=10)) as client:
+                response = await client.get(kavenegar, ssl=ssl, params=params)
+                response.raise_for_status()
+                return await response.json()
 
-        except aiohttp.ClientError as e:
-            if not isinstance(e, aiohttp.ClientSSLError):
+        except httpx.ClientError as e:
+            if not isinstance(e, httpx.ClientSSLError):
                 return
         ssl = False
 
@@ -62,15 +60,13 @@ async def send_kavenegar_async(phone: str, text: str, **kwargs):
     ssl = True
     for _ in range(3):
         try:
-            async with aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=10)
-            ) as session:
-                async with session.get(kavenegar, ssl=ssl, params=params) as response:
-                    response.raise_for_status()
-                    return await response.json()
+            async with httpx.AsyncClient(timeout=httpx.Timeout(total=10)) as client:
+                response = await client.get(kavenegar, ssl=ssl, params=params)
+                response.raise_for_status()
+                return await response.json()
 
-        except aiohttp.ClientError as e:
-            if not isinstance(e, aiohttp.ClientSSLError):
+        except httpx.ClientError as e:
+            if not isinstance(e, httpx.ClientSSLError):
                 return
         ssl = False
 
@@ -93,10 +89,10 @@ async def send_infobip_async(phone: str, text: str, **kwargs):
         "Accept": "application/json",
     }
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(send_url, data=payload, headers=headers) as response:
-            data = await response.text()
-            print(data)
+    async with httpx.AsyncClient() as client:
+        response = await client.post(send_url, data=payload, headers=headers)
+        data = await response.text()
+        print(data)
 
 
 async def send_sms_async(phone: str, text: str, **kwargs):

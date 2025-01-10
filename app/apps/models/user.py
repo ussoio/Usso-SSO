@@ -3,15 +3,16 @@
 import asyncio
 import base64
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any, Tuple
+
+from fastapi_mongo_base.models import BaseEntity
+from pydantic import BaseModel, Field
 
 from apps.api_key.schemas import APIKeySchema
 from apps.models import base
 from apps.models.website import Website
 from apps.util import password, sms, str_tools, utility
-from beanie import Document
-from pydantic import BaseModel, Field
 
 
 class BasicAuthenticator(base.BaseDBModel):
@@ -24,7 +25,7 @@ class BasicAuthenticator(base.BaseDBModel):
 class UserAuthenticator(BasicAuthenticator):
     data: dict[str, Any] = {}
     validated_at: datetime | None = None
-    last_activity: datetime = datetime.now(timezone.utc)
+    last_activity: datetime = datetime.now()
     max_age_minutes: int | None = None
 
     def __init__(self, **kwargs):
@@ -39,8 +40,8 @@ class UserAuthenticator(BasicAuthenticator):
         super().__init__(**kwargs)
 
     async def __make_valid(self):
-        self.validated_at = datetime.now(timezone.utc)
-        self.last_activity = datetime.now(timezone.utc)
+        self.validated_at = datetime.now()
+        self.last_activity = datetime.now()
         # await self.update()
 
     async def validate(self, secret: str, **kwargs) -> bool:
@@ -195,9 +196,9 @@ class UserAuthenticator(BasicAuthenticator):
             success = False
 
         if success:
-            self.last_activity = datetime.now(timezone.utc)
+            self.last_activity = datetime.now()
             if self.validated_at is None and self.auth_method.valid_by_login():
-                self.validated_at = datetime.now(timezone.utc)
+                self.validated_at = datetime.now()
 
         return success
 
@@ -206,7 +207,7 @@ class LoginSession(BaseModel):
     jti: str
     user_agent: str
     auth_method: base.AuthMethod
-    login_at: datetime = datetime.now(timezone.utc)
+    login_at: datetime = datetime.now()
     max_age_minutes: int | None = None
     ip: str
     location: str | None = None
@@ -217,10 +218,10 @@ class LoginSession(BaseModel):
 
     @property
     def is_expired(self) -> bool:
-        return self.expire_at < datetime.now(timezone.utc)
+        return self.expire_at < datetime.now()
 
 
-class User(Document, base.BaseDBModel):
+class User(base.BaseDBModel, BaseEntity):
     name: str | None = None
     username: str | None = None
     website_uid: str | None = None
@@ -229,12 +230,15 @@ class User(Document, base.BaseDBModel):
     authenticators: list[UserAuthenticator] = []
     current_authenticator: UserAuthenticator | None = Field(default=None, exclude=True)
     current_session: LoginSession | None = Field(default=None, exclude=True)
-    last_activity: datetime = datetime.now(timezone.utc)
+    last_activity: datetime = datetime.now()
     is_active: bool = False
     login_sessions: list[LoginSession] = []
     data: dict[str, Any] = {}
     api_keys: dict[str, APIKeySchema] = {}
     history: list[dict[str, Any]] = []
+
+    class Settings:
+        indexes = BaseEntity.Settings.indexes
 
     # auth: UserAuthenticator = field(init=False, default=None)  # type: ignore
 
@@ -304,9 +308,10 @@ class User(Document, base.BaseDBModel):
                 # to check auth.max_age_minutes and send valid meessage for user
                 if auth.max_age_minutes is None:
                     return user, auth
-                if auth.last_activity + timedelta(
-                    minutes=auth.max_age_minutes
-                ) > datetime.now(timezone.utc):
+                if (
+                    auth.last_activity + timedelta(minutes=auth.max_age_minutes)
+                    > datetime.now()
+                ):
                     return user, auth
 
         return None, None
@@ -327,7 +332,7 @@ class User(Document, base.BaseDBModel):
         if auth.auth_method.valid_by_login():
             user.is_active = True
 
-        user.last_activity = datetime.now(timezone.utc)
+        user.last_activity = datetime.now()
         await user.save()
         user.current_authenticator = auth
         return user
@@ -343,7 +348,7 @@ class User(Document, base.BaseDBModel):
         if user is None:
             user = cls()
             created = True
-            website = await Website.get_by_origin(b_auth.interface)
+            website: Website = await Website.get_by_origin(b_auth.interface)
             if website.custom_claims:
                 user.data = utility.fill_template(
                     website.custom_claims, user.model_dump()
@@ -354,6 +359,7 @@ class User(Document, base.BaseDBModel):
         # todo get data from authenticator
         # await user.save()
         user.current_authenticator = user_auth
+        asyncio.create_task(website.send_webhook(user.model_dump()))
         return user, created
 
     @property
@@ -372,9 +378,10 @@ class User(Document, base.BaseDBModel):
                 and auth.interface == b_auth.interface
             ):
                 if auth.max_age_minutes is not None:
-                    if auth.last_activity + timedelta(
-                        minutes=auth.max_age_minutes
-                    ) < datetime.now(timezone.utc):
+                    if (
+                        auth.last_activity + timedelta(minutes=auth.max_age_minutes)
+                        < datetime.now()
+                    ):
                         temp_ua = await auth.send_validation()
                         if temp_ua is not None:
                             self.authenticators[i] = temp_ua
@@ -395,7 +402,7 @@ class User(Document, base.BaseDBModel):
                     return None
 
                 if await auth.validate(b_auth.secret):
-                    self.last_activity = datetime.now(timezone.utc)
+                    self.last_activity = datetime.now()
                     await self.save()
                     return auth
 
@@ -443,7 +450,7 @@ class User(Document, base.BaseDBModel):
         await other.save()
 
         self.history = self.history + history
-        self.last_activity = datetime.now(timezone.utc)
+        self.last_activity = datetime.now()
         await self.save()
         return self
 

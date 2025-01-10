@@ -1,8 +1,9 @@
 from typing import Literal
 
-from apps.models.base import AuthMethod
 from pydantic import BaseModel, StringConstraints
 from typing_extensions import Annotated
+
+from apps.models.base import AuthMethod
 
 
 class ShapeModel(BaseModel):

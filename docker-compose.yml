@@ -6,8 +6,8 @@ services:
       - .env
     volumes:
       - ./app:/app
-    ports:
-      - 3013:3000
+    # ports:
+    #   - 3013:3000
     networks:
       - data
       - traefik-net
@@ -30,6 +30,28 @@ services:
       - ./redis.data:/data
     networks:
       - data
+
+  redis-insight:
+    image: redis/redisinsight
+    restart: unless-stopped
+    volumes:
+      - ./redis-insight.data:/data
+    networks:
+      - data
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${PROJECT_NAME}-redis-insight.entrypoints=web"
+      - "traefik.http.routers.${PROJECT_NAME}-redis-insight.rule=Host(`redis.${DOMAIN}`)"
+      # - "traefik.http.routers.${PROJECT_NAME}-redis-insight.middlewares=https-redirect"
+      - "traefik.http.routers.${PROJECT_NAME}-redis-insight-secure.entrypoints=websecure"
+      - "traefik.http.routers.${PROJECT_NAME}-redis-insight-secure.rule=Host(`redis.${DOMAIN}`)"
+      - "traefik.http.routers.${PROJECT_NAME}-redis-insight-secure.tls=true"
+      - "traefik.http.routers.${PROJECT_NAME}-redis-insight-secure.tls.certresolver=letsencrypt"
+      # - "traefik.http.middlewares.${PROJECT_NAME}-redis-auth.basicauth.users=admin:{SHA}YcFGtCunAkuReKLfzp8gbJFUwkA="
+      # - "traefik.http.routers.${PROJECT_NAME}-redis-insight-secure.middlewares=${PROJECT_NAME}-redis-auth"
+      - "traefik.http.services.${PROJECT_NAME}-redis-insight.loadbalancer.server.port=5540"
+      - "traefik.docker.network=traefik-net"
 
   mongo:
     image: mongo:latest

@@ -3,6 +3,9 @@
 import base64
 import logging
 
+from fastapi import APIRouter, Depends, Request, Response
+from fastapi_mongo_base.core.exceptions import BaseHTTPException
+
 from apps.middlewares.jwt_auth import (
     jwt_access_security_user,
     jwt_access_security_user_None,
@@ -12,8 +15,6 @@ from apps.models.website import Website, WebsiteConfig
 from apps.schemas.website import AnonConfig
 from apps.serializers.website import JWKS, RSAJWK
 from apps.serializers.website_user import AuthenticatorDTO
-from core.exceptions import BaseHTTPException
-from fastapi import APIRouter, Depends, Request, Response
 from server.db import redis_sync as redis
 
 from .auth import user_registration
@@ -79,27 +80,16 @@ async def domain_list(request: Request, user: User = Depends(jwt_access_security
 
 @router.get("/config")
 async def get_config(request: Request, language: str = "fa"):
-    # import json
-
-    # with open("config.json", "r") as f:
-    #     config = json.load(f)
-    # return config
     from apps.schemas.config import get_config_model
 
     website = await Website.get_by_origin(request.url.hostname)
     config_model = get_config_model(website.config, language)
     return config_model
 
-    user: User = await jwt_access_security_user_None(request=request)  # type: ignore[no-untyped-def]
-    if not user or user.uid != website.user_uid:
-        if not request.headers.get("x-api-key"):
-            return AnonConfig().from_config(website.config)
 
-        api_key = request.headers.get("x-api-key")
-        w = await Website.find_one(Website.api_key == api_key)
-        if not (w and w.uid == website.uid):
-            return AnonConfig().from_config(website.config)
-
+@router.get("/conf")
+async def get_config(request: Request):
+    website = await Website.get_by_origin(request.url.hostname)
     return website.config
 
 
@@ -219,28 +209,3 @@ async def set_payload(request: Request, uid: str, payload: dict):
     user.data = payload
     await user.save()
     return user.data
-
-
-'''
-# @router.get("", response_model=UserSerializer)
-# async def get_user(user: User = Security(jwt_access_security_user)):  # type: ignore[no-untyped-def]
-#     """Return the current user."""
-#     return UserSerializer(**user.model_dump())
-
-
-# @router.patch("", response_model=UserSerializer)
-# async def update_user(update: UserUpdate, user: User = Security(jwt_access_security_user)):  # type: ignore[no-untyped-def]
-#     """Update allowed user fields."""
-#     user.username = update.username
-#     await user.save()
-#     return user
-
-
-# @router.delete("")
-# async def delete_user(
-#     user: User = Security(jwt_access_security_user),
-# ) -> Response:
-#     """Delete current user."""
-#     await user.delete()
-#     return Response(status_code=204)
-'''

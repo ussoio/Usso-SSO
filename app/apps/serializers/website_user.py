@@ -1,5 +1,6 @@
-from apps.models import base
 from pydantic import BaseModel
+
+from apps.models import base
 
 
 class AuthenticatorDTO(BaseModel):
