@@ -580,9 +580,13 @@ async def logout(
 
 @router.get("/refresh/api")
 async def get_token(request: Request, response: Response, user_id: uuid.UUID = None):
+    import logging
+
     from .website import get_website
 
     website = await get_website(request)
+
+    logging.info(f"refresh admin api key {website.origin} {user_id}")
 
     user_id = f"u_{user_id}" if user_id else website.user_uid
     user = await User.find_one(User.uid == user_id)
@@ -592,9 +596,9 @@ async def get_token(request: Request, response: Response, user_id: uuid.UUID = N
     return UserSerializer(token=token, **user.model_dump())
 
 
-# @router.get("/cookies", include_in_schema=False)
-# async def cookies(request: Request):
-#     return dict(request.cookies)
+@router.get("/cookies", include_in_schema=False)
+async def cookies(request: Request):
+    return dict(request.cookies)
 
 
 @router.get("/long-token", include_in_schema=False)

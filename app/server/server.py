@@ -10,9 +10,7 @@ app = app_factory.create_app(
     ufaas_handler=False,  # lifespan_func=lifespan
 )
 
-
 app.add_middleware(cors.DynamicCORSMiddleware)
-
 
 app.include_router(auth.router)
 app.include_router(user.router)

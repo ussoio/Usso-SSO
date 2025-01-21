@@ -359,7 +359,10 @@ class User(base.BaseDBModel, BaseEntity):
         # todo get data from authenticator
         # await user.save()
         user.current_authenticator = user_auth
-        asyncio.create_task(website.send_webhook(user.model_dump()))
+        if website:
+            asyncio.create_task(
+                website.send_webhook(user.model_dump(), "register", "user")
+            )
         return user, created
 
     @property

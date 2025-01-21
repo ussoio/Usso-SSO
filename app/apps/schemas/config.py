@@ -93,10 +93,11 @@ class LocalizationModel(BaseModel):
 
 class ConfigModel(BaseModel):
     branding: BrandingModel
-    legal: LegalModel
+    legal: LegalModel | None = None
     methods: list[ProviderModel | CredentialModel]
     captcha_api: str | None = None
     localization: LocalizationModel
+    default_redirect_url: str
 
 
 def get_config_methods(
@@ -170,7 +171,7 @@ def get_branding_model(config):
         #     secondary=PaletteColorModel(main=config.secondary_color),
         #     text=PaletteColorModel(main=config.text_color),
         # ),
-        typography=TypographyModel(fontFamily="Vazir, Arial, sans-serif"),
+        typography=TypographyModel(fontFamily="Vazirmatnp, Arial, sans-serif"),
     )
 
 
@@ -180,4 +181,5 @@ def get_config_model(config, language: str = "fa"):
         legal=config.legal if config.legal else LegalModel(),
         methods=get_config_methods(config.available_methods, language),
         localization=LocalizationModel(),
+        default_redirect_url=config.default_redirect_url,
     )

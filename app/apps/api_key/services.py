@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 
 import bcrypt
+from aiocache import cached
 from apps.models.user import User
 from fastapi_mongo_base.utils import texttools
 from usso.b64tools import b64_decode_uuid, b64_encode_uuid_strip
@@ -45,6 +46,7 @@ async def add_api_key(user: User, length: int = 64) -> APIKeyCreateResponseSchem
     return response
 
 
+@cached(ttl=60 * 10)
 async def get_user_by_api_key(api_key: str) -> tuple[User, APIKeySchema]:
     uid_pos = api_key.find("_")
     uid = b64_decode_uuid(api_key[uid_pos + 1 : uid_pos + 23])

@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 from fastapi_mongo_base.models import BaseEntity
 from fastapi_mongo_base.utils import texttools
-from json_advanced import dumps, loads
+from json_advanced import dumps
 from pydantic import BaseModel, EmailStr, field_validator, model_validator
 from server.config import Settings
 
@@ -26,7 +26,8 @@ class WebsiteConfig(base.BaseDBModel):
     logo: str | None = "https://media.usso.io/usso.svg"
 
     branding: BrandingModel | None = None
-    legal: LegalModel = LegalModel()
+    legal: LegalModel | None = None
+    default_redirect_url: str = "/"
 
     otp_timeout: int = 60 * 5
     otp_length: int = 4
@@ -170,8 +171,8 @@ class Website(base.BaseDBModel, BaseEntity):
 
         redis_key = f"{cls.__name__}:{origin}"
         website = redis.get(redis_key)
-        if website:
-            return cls(**loads(website))
+        # if website:
+        #    return cls(**loads(website))
         website = await cls.find_one(cls.origin == origin)
         if not website:
             raise ValueError("Website not found.")

@@ -43,7 +43,7 @@ async def send_kavenegar_async(phone: str, text: str, **kwargs):
     async with httpx.AsyncClient() as client:
         response = await client.get(kavenegar, params=params)
         response.raise_for_status()
-        return await response.json()
+        return response.json()
 
 
 async def send_infobip_async(phone: str, text: str, **kwargs):
