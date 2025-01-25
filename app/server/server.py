@@ -3,7 +3,8 @@ from apps.middlewares import cors
 from apps.routes import app_auth, auth, user, website
 from fastapi.staticfiles import StaticFiles
 from fastapi_mongo_base.core import app_factory
-from server import config
+
+from . import config
 
 app = app_factory.create_app(
     settings=config.Settings(),

@@ -53,7 +53,11 @@ async def get_token(user: User, website: Website, token_type: JWTMode, **kwargs)
         email=email,
         phone=phone,
         is_active=user.is_active,
-        authentication_method=user.current_authenticator.auth_method,
+        authentication_method=(
+            user.current_authenticator.auth_method
+            if user.current_authenticator
+            else None
+        ),
         data=user.data,
         **kwargs,
     )

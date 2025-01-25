@@ -24,6 +24,7 @@ from apps.serializers.user import UserSerializer
 from fastapi import APIRouter, Body, Depends, Query, Request, Response, Security
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi_mongo_base.core.exceptions import BaseHTTPException
+from fastapi_mongo_base.utils import basic
 from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
 from requests_oauthlib import OAuth2Session
 from server.db import redis_sync as redis
@@ -125,6 +126,7 @@ async def refresh(
 
 
 @router.post("/phone-otp-request")
+@basic.try_except_wrapper
 async def phone_otp_request(
     request: Request,
     response: Response,
@@ -286,7 +288,7 @@ async def validate(request: Request, response: Response, token: str):  # type: i
 
 @router.get("/login-token")
 async def login_token(
-    request: Request, response: Response, token: str
+    request: Request, response: Response, token: str, callback_url: str | None = None
 ) -> UserSerializer:  # type: ignore[no-untyped-def]
     """Authenticate and returns the user's JWT."""
     origin, token_email, token_secret = get_email_secret_data_from_token(token)
@@ -298,7 +300,14 @@ async def login_token(
     )
     user, auth = await User.get_user_by_auth(b_auth)
     if user is None:
-        raise BaseHTTPException(404, "no_user")
+        raise BaseHTTPException(404, "user_not_found", "user not found")
+
+    for auth in user.authenticators:
+        if "link" in auth.auth_method.value:
+            break
+    else:
+        raise BaseHTTPException(404, "user_not_found", "user not found")
+
     if auth.max_age_minutes is not None and (
         auth.created_at + timedelta(minutes=auth.max_age_minutes) < datetime.utcnow()
     ):
@@ -308,7 +317,11 @@ async def login_token(
     user.is_active = True
     await user.save()
 
+    if callback_url:
+        response = RedirectResponse(url=callback_url)
     token = await jwt_response(user, request, response, refresh=True)
+    if callback_url:
+        return response
     return UserSerializer(token=token, **user.model_dump())
 
 
@@ -574,6 +587,7 @@ async def logout(
     response.delete_cookie("usso_access_token", domain=parent_domain, secure=True)
     response.delete_cookie("usso_refresh_available", domain=parent_domain, secure=True)
     response.delete_cookie("usso_refresh_token", secure=True)
+    response.delete_cookie("usso_user_id", domain=parent_domain, secure=True)
 
     return response
 

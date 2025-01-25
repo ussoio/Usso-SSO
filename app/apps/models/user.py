@@ -361,7 +361,7 @@ class User(base.BaseDBModel, BaseEntity):
         user.current_authenticator = user_auth
         if website:
             asyncio.create_task(
-                website.send_webhook(user.model_dump(), "register", "user")
+                website.send_webhook(user.model_dump(mode="json"), "register", "user")
             )
         return user, created
 
@@ -372,7 +372,9 @@ class User(base.BaseDBModel, BaseEntity):
         payload = self.model_dump()
         return payload
 
-    async def add_authenticator(self, b_auth: BasicAuthenticator) -> UserAuthenticator:
+    async def add_authenticator(
+        self, b_auth: BasicAuthenticator, ignore_validation: bool = False
+    ) -> UserAuthenticator:
         """Add an authenticator to user."""
         for i, auth in enumerate(self.authenticators):
             if (
@@ -385,9 +387,10 @@ class User(base.BaseDBModel, BaseEntity):
                         auth.last_activity + timedelta(minutes=auth.max_age_minutes)
                         < datetime.now()
                     ):
-                        temp_ua = await auth.send_validation()
-                        if temp_ua is not None:
-                            self.authenticators[i] = temp_ua
+                        if not ignore_validation:
+                            temp_ua = await auth.send_validation()
+                            if temp_ua is not None:
+                                self.authenticators[i] = temp_ua
                             await self.save()
                         return None
 
@@ -397,7 +400,9 @@ class User(base.BaseDBModel, BaseEntity):
                         await self.save()
                     return auth
 
-                if b_auth.secret is None or auth.auth_method.needs_validation():
+                if not ignore_validation and (
+                    b_auth.secret is None or auth.auth_method.needs_validation()
+                ):
                     temp_ua = await auth.send_validation()
                     if temp_ua is not None:
                         self.authenticators.append(temp_ua)
@@ -422,7 +427,11 @@ class User(base.BaseDBModel, BaseEntity):
             max_age_minutes=b_auth.auth_method.max_age_minutes,
         )
         self.authenticators.append(user_auth)
-        if user_auth.auth_method.needs_validation() and user_auth.validated_at is None:
+        if (
+            not ignore_validation
+            and user_auth.auth_method.needs_validation()
+            and user_auth.validated_at is None
+        ):
             temp_ua = await user_auth.send_validation()
             if temp_ua is not None:
                 self.authenticators.append(temp_ua)

@@ -1,6 +1,6 @@
 import hashlib
-from datetime import datetime, timezone
-from typing import Annotated
+from datetime import datetime
+from typing import Annotated, Literal
 
 import dotenv
 import httpx
@@ -265,18 +265,25 @@ class Website(base.BaseDBModel, BaseEntity):
             self.config.email_reset_template, subject, email, url=url
         )
 
-    async def send_webhook(self, data: dict, event_type: str, model: str):
+    async def send_webhook(
+        self, data: dict, event_type: Literal["register"], model: str
+    ):
         if not self.config.register_webhook:
             return
 
-        now = datetime.now(timezone.utc)
+        import logging
+
+        now = datetime.now()
         data = {
             "data": data,
             "event_type": event_type,
             "model": model,
             "timestamp": now.isoformat(),
-            "website_id": self.id,
+            "website_id": self.uid,
         }
+        logging.info(
+            f"send_webhook {self.config.register_webhook} {event_type} {model}"
+        )
         async with httpx.AsyncClient() as client:
             await client.post(
                 self.config.register_webhook,

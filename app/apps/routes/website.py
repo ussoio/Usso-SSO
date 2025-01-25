@@ -3,6 +3,7 @@
 import base64
 import logging
 
+from apps.middlewares.auth import create_basic_authenticator
 from apps.middlewares.jwt_auth import (
     jwt_access_security_user,
     jwt_access_security_user_None,
@@ -161,10 +162,13 @@ async def get_user(request: Request, uid: str):
 
     user = await User.find_one(User.uid == uid)
     if not user:
+        logging.warning(f"user_not_found {uid} {website.origin}")
         raise BaseHTTPException(404, "user_not_found")
     for auth in user.authenticators:
         if auth.interface == website.origin:
             return user
+
+    logging.warning(f"user_not_found {uid} {user.authenticators} {website.origin}")
     raise BaseHTTPException(404, "user_not_found")
 
 
@@ -193,6 +197,35 @@ async def get_payload(request: Request, uid: str):
     return user.data
 
 
+@router.get("/users/{uid}/token")
+async def get_link_token(request: Request, uid: str):
+    import uuid
+
+    from apps.models.base import AuthMethod
+    from apps.models.user import UserAuthenticator
+
+    website = await get_website(request)
+    user = await get_user(request, uid)
+    logging.info(f"get_link_token {uid}")
+
+    auth = user.authenticators[0]
+    token = base64.b64encode(
+        f"{website.origin}:{auth.representor}:{uuid.uuid4()}".encode("utf-8")
+    )
+
+    temp_ua = UserAuthenticator(
+        interface=website.origin,
+        auth_method=AuthMethod.email_link,
+        representor=auth.representor,
+        secret=token,
+        hash=False,
+        max_age_minutes=AuthMethod.email_link.max_age_minutes,
+    )
+    await user.add_authenticator(temp_ua)
+
+    return {"token": token}
+
+
 @router.patch("/users/{uid}/payload")
 async def update_payload(request: Request, uid: str, payload: dict):
     user = await get_user(request, uid)
@@ -207,3 +240,14 @@ async def set_payload(request: Request, uid: str, payload: dict):
     user.data = payload
     await user.save()
     return user.data
+
+
+@router.post("/users/{uid}/authenticators")
+async def set_authenticators(
+    request: Request,
+    uid: str,
+    authenticator: BasicAuthenticator = Depends(create_basic_authenticator),
+):
+    user = await get_user(request, uid)
+    await user.add_authenticator(authenticator, ignore_validation=True)
+    return user.authenticators

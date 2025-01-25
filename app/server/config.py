@@ -18,8 +18,6 @@ class Settings(config.Settings):
     base_path: str = ""
 
     # Security settings
-    secret_key: str = os.getenv("SECRET_KEY")
-    salt: bytes = os.getenv("SALT").encode()
     RSA_PASSWORD: bytes = os.getenv("RSA_PASSWORD").encode()
 
     # FastMail SMTP server settings
