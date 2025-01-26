@@ -289,6 +289,7 @@ class Website(base.BaseDBModel, BaseEntity):
                 self.config.register_webhook,
                 headers=self.config.register_webhook_headers,
                 json=data,
+                timeout=30,
             )
 
     def get_token(self, payload: dict) -> str:
