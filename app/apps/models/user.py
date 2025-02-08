@@ -228,14 +228,18 @@ class User(base.BaseDBModel, BaseEntity):
     workspace_id: str | None = None
     workspace_ids: list[str] = []
     authenticators: list[UserAuthenticator] = []
-    current_authenticator: UserAuthenticator | None = Field(default=None, exclude=True)
-    current_session: LoginSession | None = Field(default=None, exclude=True)
-    last_activity: datetime = datetime.now()
+    current_authenticator: UserAuthenticator | None = Field(default=None)
+    current_session: LoginSession | None = Field(default=None)
+    last_activity: datetime = Field(default_factory=datetime.now)
     is_active: bool = False
     login_sessions: list[LoginSession] = []
-    data: dict[str, Any] = {}
+    data: dict = {}
     api_keys: dict[str, APIKeySchema] = {}
     history: list[dict[str, Any]] = []
+    referal_code: str | None = Field(
+        default_factory=lambda: texttools.generate_random_chars(6)
+    )
+    referrer_code: str | None = None
 
     class Settings:
         indexes = BaseEntity.Settings.indexes
@@ -341,20 +345,31 @@ class User(base.BaseDBModel, BaseEntity):
     async def register(
         cls,
         b_auth: BasicAuthenticator,
+        referrer_code: str | None = None,
         **kwargs,
     ) -> tuple["User", bool]:
         created = False
         user, _ = await cls.get_user_by_auth(b_auth, **kwargs)
         if user is None:
+            website: Website = await Website.get_by_origin(b_auth.interface)
+            if not website.config.open_registration:
+                import logging
+                logging.warning(f"User registration is disabled for {b_auth.interface}")
+                return None, False
             user = cls()
             created = True
-            website: Website = await Website.get_by_origin(b_auth.interface)
             if website.custom_claims:
                 user.data = utility.fill_template(
                     website.custom_claims, user.model_dump()
                 )
 
         user_auth = await user.add_authenticator(b_auth)
+        referrer_user = None
+        if referrer_code:
+            referrer_user = await User.find_one(User.referal_code == referrer_code)
+            if referrer_user:
+                user.referrer_code = referrer_code
+                await user.save()
 
         # todo get data from authenticator
         # await user.save()
@@ -363,6 +378,12 @@ class User(base.BaseDBModel, BaseEntity):
             asyncio.create_task(
                 website.send_webhook(user.model_dump(mode="json"), "register", "user")
             )
+            if referrer_user:
+                asyncio.create_task(
+                    website.send_webhook(
+                        referrer_user.model_dump(mode="json"), "refer", "user"
+                    )
+                )
         return user, created
 
     @property

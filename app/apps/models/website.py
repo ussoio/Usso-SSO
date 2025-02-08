@@ -64,6 +64,8 @@ class WebsiteConfig(base.BaseDBModel):
     register_webhook: str | None = None
     register_webhook_headers: dict | None = None
 
+    open_registration: bool = True
+
     @field_validator("logo")
     def validate_logo(cls, v):
         return v or "https://media.usso.io/usso.svg"

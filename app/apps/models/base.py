@@ -5,7 +5,8 @@ from enum import Enum
 from typing import Annotated, Optional
 
 from beanie import Indexed
-from pydantic import BaseModel, Field, model_validator
+from fastapi_mongo_base.schemas import CoreEntitySchema
+from pydantic import Field, model_validator
 
 
 def abbreviate(text: str) -> str:
@@ -16,13 +17,8 @@ def get_unique_id(cls) -> str:
     return f"{abbreviate(cls.__name__)}_{uuid.uuid4()}"
 
 
-class BaseDBModel(BaseModel):
+class BaseDBModel(CoreEntitySchema):
     uid: Annotated[str, Indexed(str, unique=True)] = Field(default="")
-    #     default_factory=lambda: BaseDBModel.get_unique_id()
-    # )
-    created_at: datetime = Field(default_factory=datetime.now)
-    # updated_at: datetime = datetime.utcnow()
-    is_deleted: bool = False
     data: dict = {}
 
     @model_validator(mode="before")

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -24,7 +24,7 @@ class JWTPayload(BaseModel):
     user_id: str
     workspace_id: str
     workspace_ids: list[str] = []
-    iat: int = Field(default_factory=lambda: int(datetime.utcnow().timestamp()))
+    iat: int = Field(default_factory=lambda: int(datetime.now(UTC).timestamp()))
     exp: int | None = None
     jti: str = Field(default_factory=lambda: f"jti_{uuid.uuid4()}")
     # origin: str = Field(exclude=True)
@@ -62,7 +62,7 @@ class JWTPayload(BaseModel):
     @field_validator("exp", mode="before")
     def convert_datetime_to_timestamp(cls, v):
         if v is None:
-            return int(datetime.utcnow().timestamp()) + 60
+            return int(datetime.now(UTC).timestamp()) + 60
         if isinstance(v, datetime):
             return int(v.timestamp())
         return v

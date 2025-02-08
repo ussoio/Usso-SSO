@@ -14,6 +14,7 @@ from apps.serializers.website import JWKS, RSAJWK
 from apps.serializers.website_user import AuthenticatorDTO
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi_mongo_base.core.exceptions import BaseHTTPException
+from fastapi_mongo_base.utils import basic
 from server.db import redis_sync as redis
 
 from .auth import user_registration
@@ -198,6 +199,7 @@ async def get_payload(request: Request, uid: str):
 
 
 @router.get("/users/{uid}/token")
+@basic.try_except_wrapper
 async def get_link_token(request: Request, uid: str):
     import uuid
 
@@ -206,7 +208,6 @@ async def get_link_token(request: Request, uid: str):
 
     website = await get_website(request)
     user = await get_user(request, uid)
-    logging.info(f"get_link_token {uid}")
 
     auth = user.authenticators[0]
     token = base64.b64encode(
@@ -221,8 +222,7 @@ async def get_link_token(request: Request, uid: str):
         hash=False,
         max_age_minutes=AuthMethod.email_link.max_age_minutes,
     )
-    await user.add_authenticator(temp_ua)
-
+    await user.add_authenticator(temp_ua, ignore_validation=True)
     return {"token": token}
 
 

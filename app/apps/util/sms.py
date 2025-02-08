@@ -41,7 +41,7 @@ async def send_kavenegar_async(phone: str, text: str, **kwargs):
     params = {"receptor": phone, "message": text, "sender": "100088008088"}
 
     async with httpx.AsyncClient() as client:
-        response = await client.get(kavenegar, params=params)
+        response = await client.get(kavenegar, params=params, timeout=30)
         response.raise_for_status()
         return response.json()
 

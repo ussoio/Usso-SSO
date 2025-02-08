@@ -1,10 +1,9 @@
-"""Registration router."""
-
 import hashlib
 import hmac
+import logging
 import os
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from apps.middlewares.auth import create_basic_authenticator
@@ -132,6 +131,7 @@ async def phone_otp_request(
     response: Response,
     test: bool = False,
     phone: str = Body(embed=True),
+    referrer_code: str | None = None,
 ) -> JSONResponse:
     """Send OTP to phone using sms."""
     website = await Website.get_by_origin(request.url.hostname)
@@ -139,7 +139,9 @@ async def phone_otp_request(
     _, auth = await User.get_user_by_auth(b_auth)
 
     if not auth:
-        user, success = await User.register(b_auth)
+        user, success = await User.register(b_auth, referrer_code)
+        if not success:
+            raise BaseHTTPException(400, "user_registration_failed")
         auth = user.current_authenticator
 
     otp = await auth.send_otp(
@@ -224,7 +226,7 @@ async def reset_password(
     if user is None:
         raise BaseHTTPException(404, "no_user")
     if auth.max_age_minutes is not None and (
-        auth.created_at + timedelta(minutes=auth.max_age_minutes) < datetime.utcnow()
+        auth.created_at + timedelta(minutes=auth.max_age_minutes) < datetime.now(UTC)
     ):
         raise BaseHTTPException(404, "link_expired")
 
@@ -241,7 +243,7 @@ async def reset_password(
         interface=b_auth.interface,
         representor=token_email,
         secret=password,
-        validated_at=datetime.utcnow(),
+        validated_at=datetime.now(UTC),
     )
 
     user.is_active = True
@@ -265,7 +267,7 @@ async def validate(request: Request, response: Response, token: str):  # type: i
     if user is None:
         raise BaseHTTPException(404, "no_user")
     if auth.max_age_minutes is not None and (
-        auth.created_at + timedelta(minutes=auth.max_age_minutes) < datetime.utcnow()
+        auth.created_at + timedelta(minutes=auth.max_age_minutes) < datetime.now(UTC)
     ):
         raise BaseHTTPException(404, "link_expired")
 
@@ -277,7 +279,7 @@ async def validate(request: Request, response: Response, token: str):  # type: i
             and auth.representor == token_email
         ):
             if auth.validated_at is None:
-                auth.validated_at = datetime.utcnow()
+                auth.validated_at = datetime.now(UTC)
 
     user.is_active = True
     await user.save()
@@ -300,17 +302,25 @@ async def login_token(
     )
     user, auth = await User.get_user_by_auth(b_auth)
     if user is None:
+        logging.info(f"no_user {user=}")
+        if callback_url:
+            return RedirectResponse(url=callback_url)
         raise BaseHTTPException(404, "user_not_found", "user not found")
 
     for auth in user.authenticators:
         if "link" in auth.auth_method.value:
             break
     else:
+        logging.info(f"no_link_auth {user.authenticators=}")
+        if callback_url:
+            return RedirectResponse(url=callback_url)
         raise BaseHTTPException(404, "user_not_found", "user not found")
 
     if auth.max_age_minutes is not None and (
-        auth.created_at + timedelta(minutes=auth.max_age_minutes) < datetime.utcnow()
+        auth.created_at + timedelta(minutes=auth.max_age_minutes) < datetime.now()
     ):
+        if callback_url:
+            return RedirectResponse(url=callback_url)
         raise BaseHTTPException(404, "link_expired")
 
     user.authenticators.remove(auth)
@@ -445,7 +455,7 @@ async def google_login_callback(
         gu_auth.data = user_data
 
         if auth.validated_at is None:
-            auth.validated_at = datetime.utcnow()
+            auth.validated_at = datetime.now(UTC)
 
         user.is_active = True
         user.authenticators[-1].data = user_data
@@ -616,7 +626,7 @@ async def cookies(request: Request):
 
 
 @router.get("/long-token", include_in_schema=False)
-async def cookies(
+async def long_login(
     request: Request,
     response: Response,
     days: int = 30,

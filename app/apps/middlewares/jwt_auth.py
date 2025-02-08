@@ -81,7 +81,7 @@ async def answer_jwt_in_cookie(request: Request):
 
 async def get_location(ip_address):
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"https://ipapi.co/{ip_address}/json/")
+        response = await client.get(f"https://ipapi.co/{ip_address}/json/", timeout=30)
         if response.status_code == 200:
             data = response.json()
             location_data = {
@@ -128,10 +128,16 @@ async def jwt_response(
             },
         )
         ip = request.headers.get("X-Forwarded-For", request.client.host)
+        # TODO: check if user.current_authenticator is None
+        # TODO: remove finished sessions
         user.login_sessions.append(
             LoginSession(
                 jti=payload["jti"],
-                auth_method=user.current_authenticator.auth_method,
+                auth_method=(
+                    user.current_authenticator.auth_method
+                    if user.current_authenticator
+                    else None
+                ),
                 ip=ip,
                 user_agent=request.headers.get("user-agent", ""),
                 location=(await get_location(ip)).get("location"),
