@@ -23,7 +23,6 @@ from apps.serializers.user import UserSerializer
 from fastapi import APIRouter, Body, Depends, Query, Request, Response, Security
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi_mongo_base.core.exceptions import BaseHTTPException
-from fastapi_mongo_base.utils import basic
 from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
 from requests_oauthlib import OAuth2Session
 from server.db import redis_sync as redis
@@ -125,7 +124,6 @@ async def refresh(
 
 
 @router.post("/phone-otp-request")
-@basic.try_except_wrapper
 async def phone_otp_request(
     request: Request,
     response: Response,
@@ -141,7 +139,9 @@ async def phone_otp_request(
     if not auth:
         user, success = await User.register(b_auth, referrer_code)
         if not success:
-            raise BaseHTTPException(400, "user_registration_failed")
+            raise BaseHTTPException(
+                400, "user_registration_failed", "user registration is not allowed"
+            )
         auth = user.current_authenticator
 
     otp = await auth.send_otp(

@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Optional, Tuple
 
 import httpx
+import json_advanced as json
 import jwt
 from apps.models.base import AuthMethod
 from apps.models.user import LoginSession, User
@@ -183,7 +184,7 @@ async def jwt_response(
                 httponly=True,
                 max_age=website.config.refresh_timeout,
                 # samesite="lax",
-                samesite="none",
+                # samesite="none",
                 secure=True,
             )
             response.set_cookie(
@@ -192,10 +193,19 @@ async def jwt_response(
                 # httponly=True,
                 max_age=website.config.refresh_timeout,
                 domain=parent_domain,
-                # samesite="lax",
-                samesite="none",
+                samesite="lax",
                 secure=True,
             )
+            if user.data:
+                response.set_cookie(
+                    key="usso_data",
+                    value=json.dumps(user.data),
+                    # httponly=True,
+                    max_age=website.config.refresh_timeout,
+                    domain=parent_domain,
+                    samesite="lax",
+                    secure=True,
+                )
 
     return JWTResponse(
         **{

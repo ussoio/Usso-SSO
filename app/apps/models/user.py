@@ -354,6 +354,7 @@ class User(base.BaseDBModel, BaseEntity):
             website: Website = await Website.get_by_origin(b_auth.interface)
             if not website.config.open_registration:
                 import logging
+
                 logging.warning(f"User registration is disabled for {b_auth.interface}")
                 return None, False
             user = cls()

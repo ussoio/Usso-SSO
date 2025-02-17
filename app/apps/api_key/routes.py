@@ -50,7 +50,7 @@ async def verify_api_key(api_key: str = Body(embed=True)) -> APIKeyVerifySchema:
 
     key_data = key.model_dump()
     key_data["user_id"] = str(user.user_id)
-    return APIKeyVerifySchema(**key_data, token_type="api_key")
+    return APIKeyVerifySchema(**key_data, token_type="api_key", data=user.data)
 
 
 @router.delete("/{postfix:str}", status_code=status.HTTP_204_NO_CONTENT)
