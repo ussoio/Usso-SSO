@@ -224,6 +224,9 @@ class LoginSession(BaseModel):
 class User(base.BaseDBModel, BaseEntity):
     name: str | None = None
     username: str | None = None
+    phone: str | None = None
+    email: str | None = None
+
     website_uid: str | None = None
     workspace_id: str | None = None
     workspace_ids: list[str] = []

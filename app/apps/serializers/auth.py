@@ -48,7 +48,7 @@ class OTPAuth(BaseModel):
     def validate_phone(cls, v):
         v = str_tools.convert_to_english_digits(v)
         if not str_tools.is_valid_mobile(v):
-            raise ValueError("phone number is not valid")
+            raise ValueError("شماره تلفن وارد شده معتبر نمی باشد")
         v = str_tools.format_mobile(v)
         return v
 

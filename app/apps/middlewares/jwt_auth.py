@@ -164,8 +164,8 @@ async def jwt_response(
             # httponly=True,
             max_age=website.config.access_timeout,
             domain=parent_domain,
-            samesite="lax",
-            # samesite="none",
+            # samesite="lax",
+            samesite="none",
             secure=True,
         )
         if refresh:
@@ -193,7 +193,8 @@ async def jwt_response(
                 # httponly=True,
                 max_age=website.config.refresh_timeout,
                 domain=parent_domain,
-                samesite="lax",
+                # samesite="lax",
+                samesite="none",
                 secure=True,
             )
             if user.data:

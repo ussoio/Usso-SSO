@@ -6,7 +6,8 @@ from functools import lru_cache
 username_regex = re.compile(r"^[a-z]")
 national_code_regex = re.compile(r"^\d{10}$")
 iran_phone_regex = re.compile(r"^(?:\+?98|0098|0)9\d{9}$")
-phone_regex = re.compile(
+phone_regex = re.compile(r"^(?:\+?98|0098|0|۹۸|۰۰۹۸|۰)*(9|۹)[0-9۰-۹]{9}$")
+re.compile(
     r"^[\+]?(0{0,2})(9[976]\d|8[987530]\d|6[987]\d|5[90]\d|42\d|3[875]\d|2[98654321]\d|9[8543210]|8[6421]|6[6543210]|5[87654321]|4[987654310]|3[9643210]|2[70]|7|1)\W*\d\W*\d\W*\d\W*\d\W*\d\W*\d\W*\d\W*\d\W*(\d{1,2})$"
 )
 
