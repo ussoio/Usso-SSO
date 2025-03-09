@@ -1,4 +1,4 @@
-FROM python:3.11-slim AS fast-base
+FROM python:3.12-slim AS fast-base
 
 WORKDIR /app
 
