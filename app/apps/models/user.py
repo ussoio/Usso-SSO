@@ -188,7 +188,7 @@ class UserAuthenticator(BasicAuthenticator):
                 redis_key = f"OTP:{self.interface}:{self.representor}:{secret}"
 
             success = redis.get(redis_key) == secret
-            # redis.delete(redis_key)
+            redis.delete(redis_key)
         elif self.auth_method == base.AuthMethod.google:
             success = True
         elif self.auth_method == base.AuthMethod.authenticator_app:
