@@ -112,6 +112,9 @@ async def get_otp(request: Request, phone: str | None):
     redis_key_query = f"OTP:{request.url.hostname}:{phone}:*"
     redis_results = redis.keys(redis_key_query)
     if not redis_results:
+        logging.info(
+            f"otp_not_found {phone} {request.url.hostname} {redis_key_query} {redis_results}"
+        )
         raise BaseHTTPException(404, "otp_not_found")
     # return [redis.get(key) for key in redis_results]
     return {"otp": redis_results}
