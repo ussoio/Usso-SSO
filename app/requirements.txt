@@ -11,7 +11,7 @@ ipython
 
 aiofiles
 aiocache
-usso[fastapi]
+usso[fastapi]<0.28
 
 beanie
 fastapi-mongo-base<0.10.0

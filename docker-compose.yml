@@ -4,13 +4,13 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    volumes:
-      - ./app:/app
+    # volumes:
+    #   - ./app:/app
     # ports:
     #   - 3013:3000
     networks:
-      - data
       - traefik-net
+      - mongo-net
     labels:
       - "traefik.enable=true"
 
@@ -35,67 +35,8 @@ services:
       - "traefik.http.middlewares.${PROJECT_NAME}-ratelimit.ratelimit.period=10s"
       - "traefik.http.middlewares.${PROJECT_NAME}-ratelimit.ratelimit.burst=10"
 
-  redis:
-    image: redis:alpine
-    restart: unless-stopped
-    volumes:
-      - ./redis.data:/data
-    networks:
-      - data
-
-  redis-insight:
-    image: redis/redisinsight
-    restart: unless-stopped
-    volumes:
-      - ./redis-insight.data:/data
-    networks:
-      - data
-      - traefik-net
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.${PROJECT_NAME}-redis-insight.entrypoints=web"
-      - "traefik.http.routers.${PROJECT_NAME}-redis-insight.rule=Host(`redis.${DOMAIN}`)"
-      # - "traefik.http.routers.${PROJECT_NAME}-redis-insight.middlewares=https-redirect"
-      - "traefik.http.routers.${PROJECT_NAME}-redis-insight-secure.entrypoints=websecure"
-      - "traefik.http.routers.${PROJECT_NAME}-redis-insight-secure.rule=Host(`redis.${DOMAIN}`)"
-      - "traefik.http.routers.${PROJECT_NAME}-redis-insight-secure.tls=true"
-      - "traefik.http.routers.${PROJECT_NAME}-redis-insight-secure.tls.certresolver=letsencrypt"
-      - "traefik.http.middlewares.${PROJECT_NAME}-redis-auth.basicauth.users=admin:$2y$05$6UQ08a8rOmexgiwKGSSOa.iv6DHCnmcbgFRQ2fewJZ..SnbIquyIW"
-      - "traefik.http.routers.${PROJECT_NAME}-redis-insight-secure.middlewares=${PROJECT_NAME}-redis-auth"
-      - "traefik.http.services.${PROJECT_NAME}-redis-insight.loadbalancer.server.port=5540"
-      - "traefik.docker.network=traefik-net"
-
-  mongo:
-    image: mongo:7
-    restart: unless-stopped
-    volumes:
-      - ./mongo.data:/data/db
-    networks:
-      - data
-
-  mongo-express:
-    image: mongo-express
-    restart: unless-stopped
-    environment:
-      ME_CONFIG_MONGODB_SERVER: mongo
-      ME_CONFIG_MONGODB_PORT: "27017"
-      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_EXPRESS_USERNAME}
-      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_PASSWORD}
-    networks:
-      - data
-      - traefik-net
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.${PROJECT_NAME}-mongo-express.entrypoints=web"
-      - "traefik.http.routers.${PROJECT_NAME}-mongo-express.rule=Host(`mongo.${DOMAIN}`)"
-      - "traefik.http.services.${PROJECT_NAME}-mongo-express.loadbalancer.server.port=8081"
-      - "traefik.http.routers.${PROJECT_NAME}-mongo-express-secure.entrypoints=websecure"
-      - "traefik.http.routers.${PROJECT_NAME}-mongo-express-secure.rule=Host(`mongo.${DOMAIN}`)"
-      - "traefik.http.routers.${PROJECT_NAME}-mongo-express-secure.tls=true"
-      - "traefik.http.routers.${PROJECT_NAME}-mongo-express-secure.tls.certresolver=letsencrypt"
-      - "traefik.docker.network=traefik-net"
-
 networks:
   traefik-net:
     external: true
-  data:
+  mongo-net:
+    external: true

@@ -1,16 +1,23 @@
-FROM python:3.12-slim AS fast-base
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS fast-uv
 
 WORKDIR /app
 
-COPY requirements.txt requirements.txt
-RUN python -m pip install --no-cache-dir -r requirements.txt 
+COPY pyproject.toml pyproject.toml
 
-RUN adduser --disabled-password --gecos '' user && mkdir /app/logs && chown -R user:user /app/logs
+RUN uv pip install --system --no-cache-dir .
 
-FROM fast-base AS fast-server
+
+FROM python:3.13-slim AS fast-server
+
+WORKDIR /app
+COPY --from=fast-uv /usr/local/lib/python3.13/site-packages \
+                    /usr/local/lib/python3.13/site-packages
+
+RUN adduser --disabled-password --gecos '' user \
+    && mkdir /app/logs \
+    && chown -R user:user /app/logs
 
 USER user
 COPY --chown=user:user . .
 
-# CMD ["python", "-m" ,"debugpy", "--listen", "0.0.0.0:3000", "-m", "app"]
-CMD [ "python", "app.py" ]
+CMD [ "python", "main.py" ]

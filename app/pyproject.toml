@@ -1,0 +1,30 @@
+[project]
+name = "app"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiocache>=0.12.3",
+    "aiofiles>=24.1.0",
+    "bcrypt>=4.3.0",
+    "beanie>=1.30.0",
+    "cryptography>=45.0.4",
+    "debugpy>=1.8.14",
+    "fastapi>=0.115.12",
+    "fastapi-mail>=1.5.0",
+    "fastapi-mongo-base<0.10.0",
+    "httpx>=0.28.1",
+    "ipython>=9.3.0",
+    "json-advanced>=0.12.7",
+    "password-strength>=0.0.3.post2",
+    "pydantic[email]>=2.11.7",
+    "pyjwt[crypto]>=2.10.1",
+    "python-dotenv>=1.1.0",
+    "redis>=6.2.0",
+    "requests>=2.32.4",
+    "requests-oauthlib>=2.0.0",
+    "singleton-package>=0.6.0",
+    "usso[fastapi]<0.28",
+    "uvicorn>=0.34.3",
+]

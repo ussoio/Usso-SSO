@@ -164,5 +164,5 @@ cython_debug/
 logs/
 secrets
 scripts
-app/web/*
+# app/web/*
 config.json
