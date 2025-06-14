@@ -14,7 +14,7 @@ aiocache
 usso[fastapi]
 
 beanie
-fastapi-mongo-base
+fastapi-mongo-base<0.10.0
 redis
 
 requests
