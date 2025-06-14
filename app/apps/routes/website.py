@@ -67,6 +67,19 @@ async def get_jwks(request: Request, origin: str | None = None) -> JWKS:
     return jwks
 
 
+@router.get("/public-key.pem")
+async def get_public_key(request: Request, origin: str | None = None):
+    if origin is None:
+        origin = request.url.hostname
+    website = await Website.get_by_origin(origin)
+    if website is None:
+        raise BaseHTTPException(404, "website_not_found")
+
+    public_key = website.get_public_key_pem()
+
+    return public_key
+
+
 @router.get(
     "/", include_in_schema=lambda request: request.url.hostname.endswith("usso.io")
 )

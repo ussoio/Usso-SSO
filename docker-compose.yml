@@ -4,8 +4,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    # volumes:
-    #   - ./app:/app
+    volumes:
+      - ./app:/app
     # ports:
     #   - 3013:3000
     networks:

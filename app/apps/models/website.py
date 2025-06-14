@@ -320,10 +320,19 @@ class Website(base.BaseDBModel, BaseEntity):
         )
         return encoded
 
-    def get_public_key(self) -> str:
+    def get_public_key(self):
         return crypto_serialization.load_ssh_public_key(
             self.secrets.rsa_pub, backend=crypto_default_backend()
         )
+
+    def get_public_key_pem(self) -> str:
+        """Generates a PEM public key."""
+        public_key = self.get_public_key()
+        pem_public_key = public_key.public_bytes(
+            encoding=crypto_serialization.Encoding.PEM,
+            format=crypto_serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        return pem_public_key.decode()
 
     def generate_kid(self) -> str:
         """Generates a Key ID (kid) for the JWKS."""
