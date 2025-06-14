@@ -13,15 +13,27 @@ services:
       - traefik-net
     labels:
       - "traefik.enable=true"
+
+      # Router for HTTP (redirect to HTTPS)
       - "traefik.http.routers.${PROJECT_NAME}.entrypoints=web"
       - "traefik.http.routers.${PROJECT_NAME}.rule=${DOMAINS}"
-      - "traefik.http.routers.${PROJECT_NAME}.middlewares=https-redirect"
+      # - "traefik.http.routers.${PROJECT_NAME}.middlewares=https-redirect,${PROJECT_NAME}-ratelimit"
+
+      # Router for HTTPS
       - "traefik.http.routers.${PROJECT_NAME}-secure.entrypoints=websecure"
       - "traefik.http.routers.${PROJECT_NAME}-secure.rule=${DOMAINS}"
       - "traefik.http.routers.${PROJECT_NAME}-secure.tls=true"
       - "traefik.http.routers.${PROJECT_NAME}-secure.tls.certresolver=letsencrypt"
+      # - "traefik.http.routers.${PROJECT_NAME}-secure.middlewares=${PROJECT_NAME}-ratelimit"
+
+      # Service config
       - "traefik.http.services.${PROJECT_NAME}.loadbalancer.server.port=8000"
       - "traefik.docker.network=traefik-net"
+
+      # Middleware: Rate Limit
+      - "traefik.http.middlewares.${PROJECT_NAME}-ratelimit.ratelimit.average=5"
+      - "traefik.http.middlewares.${PROJECT_NAME}-ratelimit.ratelimit.period=10s"
+      - "traefik.http.middlewares.${PROJECT_NAME}-ratelimit.ratelimit.burst=10"
 
   redis:
     image: redis:alpine
@@ -48,13 +60,13 @@ services:
       - "traefik.http.routers.${PROJECT_NAME}-redis-insight-secure.rule=Host(`redis.${DOMAIN}`)"
       - "traefik.http.routers.${PROJECT_NAME}-redis-insight-secure.tls=true"
       - "traefik.http.routers.${PROJECT_NAME}-redis-insight-secure.tls.certresolver=letsencrypt"
-      # - "traefik.http.middlewares.${PROJECT_NAME}-redis-auth.basicauth.users=admin:{SHA}YcFGtCunAkuReKLfzp8gbJFUwkA="
-      # - "traefik.http.routers.${PROJECT_NAME}-redis-insight-secure.middlewares=${PROJECT_NAME}-redis-auth"
+      - "traefik.http.middlewares.${PROJECT_NAME}-redis-auth.basicauth.users=admin:$2y$05$6UQ08a8rOmexgiwKGSSOa.iv6DHCnmcbgFRQ2fewJZ..SnbIquyIW"
+      - "traefik.http.routers.${PROJECT_NAME}-redis-insight-secure.middlewares=${PROJECT_NAME}-redis-auth"
       - "traefik.http.services.${PROJECT_NAME}-redis-insight.loadbalancer.server.port=5540"
       - "traefik.docker.network=traefik-net"
 
   mongo:
-    image: mongo:latest
+    image: mongo:7
     restart: unless-stopped
     volumes:
       - ./mongo.data:/data/db

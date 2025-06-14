@@ -7,6 +7,7 @@ from typing import Optional, Tuple
 import httpx
 import json_advanced as json
 import jwt
+from aiocache import cached
 from apps.models.base import AuthMethod
 from apps.models.user import LoginSession, User
 from apps.models.website import Website
@@ -169,14 +170,14 @@ async def jwt_response(
             secure=True,
         )
         response.set_cookie(
-                key="usso_user_id",
-                value=user.uid[2:],
-                max_age=website.config.refresh_timeout,
-                domain=parent_domain,
-                samesite="lax",
-                # samesite="none",
-                secure=True,
-            )
+            key="usso_user_id",
+            value=user.uid[2:],
+            max_age=website.config.refresh_timeout,
+            domain=parent_domain,
+            samesite="lax",
+            # samesite="none",
+            secure=True,
+        )
         response.set_cookie(
             key="usso_refresh_available",
             value="true",
@@ -226,6 +227,7 @@ def get_email_secret_data_from_token(token: str) -> tuple[str, str]:
         raise BaseHTTPException(status_code=HTTP_401_UNAUTHORIZED, error="unauthorized")
 
 
+@cached(ttl=60 * 10)
 async def user_data_from_token(token: str, origin: str) -> UserData | None:
     """Return the user associated with a token value."""
     website = await Website.get_by_origin(origin)
@@ -249,6 +251,7 @@ async def user_data_from_token(token: str, origin: str) -> UserData | None:
     return UserData(**decoded)
 
 
+@cached(ttl=60 * 10)
 async def user_from_token(token: str, origin: str) -> User | None:
     # Assuming 'decoded' contains user information,
     # retrieve the user and return
