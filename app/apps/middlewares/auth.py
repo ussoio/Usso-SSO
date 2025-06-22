@@ -17,28 +17,28 @@ def create_basic_authenticator(
     origin = request.url.hostname
     if user_auth is None:
         raise HTTPException(401, "Invalid credentials")
-    if type(user_auth) == EmailAuth:
+    if isinstance(user_auth, EmailAuth):
         return BasicAuthenticator(
             interface=origin,
             auth_method=AuthMethod.email_password,
             representor=user_auth.email,
             secret=user_auth.password,
         )
-    if type(user_auth) == OTPAuth:
+    if isinstance(user_auth, OTPAuth):
         return BasicAuthenticator(
             interface=origin,
             auth_method=AuthMethod.phone_otp,
             representor=user_auth.phone,
             secret=user_auth.otp,
         )
-    if type(user_auth) == GoogleAuth:
+    if isinstance(user_auth, GoogleAuth):
         return BasicAuthenticator(
             interface=origin,
             auth_method=AuthMethod.google,
             representor="",
             secret=user_auth.code,
         )
-    if type(user_auth) == AuthenticatorAuth:
+    if isinstance(user_auth, AuthenticatorAuth):
         return BasicAuthenticator(
             interface=origin,
             auth_method=AuthMethod.authenticator_app,

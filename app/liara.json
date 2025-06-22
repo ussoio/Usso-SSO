@@ -1,6 +1,7 @@
 {
     "port": 8000,
     "build": {
-        "dockerfile": "./Dockerfile"
+        "location": "iran",
+        "dockerfile": "Dockerfile"
     }
 }

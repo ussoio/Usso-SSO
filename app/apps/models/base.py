@@ -52,17 +52,17 @@ class BaseDBModel(CoreEntitySchema):
 
     @classmethod
     def list(cls):
-        return cls.find_all(cls.is_deleted == False)
+        return cls.find_all(not cls.is_deleted)
 
     @classmethod
     async def get_by_uid(cls, uid: str) -> Optional["BaseDBModel"]:
-        item = await cls.find_one(cls.uid == uid, cls.is_deleted == False)
+        item = await cls.find_one(cls.uid == uid, not cls.is_deleted)
         return item
 
     @classmethod
     async def exists_by_uid(cls, uid: str) -> bool:
         """Check if a model exists by uid."""
-        return await cls.count(cls.uid == uid, cls.is_deleted == False) > 0
+        return await cls.count(cls.uid == uid, not cls.is_deleted) > 0
 
     @classmethod
     async def delete_by_uid(cls, uid: str) -> None:

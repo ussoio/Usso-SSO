@@ -101,7 +101,7 @@ async def get_config(request: Request, language: str = "fa"):
 
 
 @router.get("/conf")
-async def get_config(request: Request):
+async def get_conf(request: Request):
     website = await Website.get_by_origin(request.url.hostname)
     return website.config
 

@@ -82,6 +82,7 @@ async def answer_jwt_in_cookie(request: Request):
 
 
 async def get_location(ip_address):
+    return {}
     async with httpx.AsyncClient() as client:
         response = await client.get(f"https://ipapi.co/{ip_address}/json/", timeout=30)
         if response.status_code == 200:
@@ -91,7 +92,7 @@ async def get_location(ip_address):
                 "city": data.get("city"),
                 "region": data.get("region"),
                 "country": data.get("country_name"),
-                "location": f'{data.get("country_name", "")}, {data.get("region", "")}, {data.get("city", "")}',
+                "location": f"{data.get('country_name', '')}, {data.get('region', '')}, {data.get('city', '')}",
                 "latitude": data.get("latitude"),
                 "longitude": data.get("longitude"),
             }

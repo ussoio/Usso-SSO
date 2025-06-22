@@ -151,7 +151,7 @@ class UserAuthenticator(BasicAuthenticator):
     async def send_otp(
         self,
         length=4,
-        text=f"{{otp}}",
+        text="{otp}",
         timeout=5 * 60,
         test=False,
         **kwargs,
@@ -180,7 +180,7 @@ class UserAuthenticator(BasicAuthenticator):
             if secret is None:
                 await self.send_otp()
                 return False
-            if type(secret) == bytes:
+            if isinstance(secret, bytes):
                 redis_key = (
                     f"OTP:{self.interface}:{self.representor}:{secret.decode('utf-8')}"
                 )
@@ -268,24 +268,6 @@ class User(base.BaseDBModel, BaseEntity):
 
         return b64tools.b64_encode_uuid_strip(self.uid)
 
-    class Settings:
-        # use_cache = True
-        # cache_expiration_time = timedelta(minutes=10)
-        # cache_capacity = 1024
-
-        indexes = [
-            # Index for a field within each object in the 'authenticators' list
-            [("authenticators.uid", 1)],
-            # Index for a field within each object in the 'authenticators' list
-            # IndexModel(
-            #     [
-            #         ("authenticators.interface", 1),
-            #         ("authenticators.representor", 1),
-            #         ("authenticators.auth_method", 1),
-            #     ],
-            #     unique=True,
-            # ),
-        ]
 
     @classmethod
     async def get_user_by_auth(
@@ -298,8 +280,8 @@ class User(base.BaseDBModel, BaseEntity):
             cls.authenticators.representor == b_auth.representor,
             cls.authenticators.auth_method == b_auth.auth_method,
             # cls.authenticators.validated_at != None,
-            cls.authenticators.is_deleted == False,
-            cls.is_deleted == False,
+            not cls.authenticators.is_deleted,
+            not cls.is_deleted,
         )
         if user is None:
             return None, None
@@ -441,7 +423,7 @@ class User(base.BaseDBModel, BaseEntity):
 
                 return
 
-        if type(b_auth) == UserAuthenticator:
+        if isinstance(b_auth, UserAuthenticator):
             b_auth = BasicAuthenticator(**b_auth.model_dump())
         user_auth = UserAuthenticator(
             **b_auth.model_dump(),

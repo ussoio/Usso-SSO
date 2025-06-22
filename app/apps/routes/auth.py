@@ -102,7 +102,7 @@ async def login(
 
 
 @router.post("/refresh")
-async def refresh(
+async def post_refresh(
     request: Request,
     response: Response,
     user: User = Security(jwt_refresh_security),
@@ -154,7 +154,7 @@ async def phone_otp_request(
     )
 
     return JSONResponse(
-        {"message": f"کد ورود برای شماره‌ی شما پیامک شد.", "length": len(otp)},
+        {"message": "کد ورود برای شماره‌ی شما پیامک شد.", "length": len(otp)},
         status_code=200,
     )
     # response.status_code = HTTP_201_CREATED
@@ -497,7 +497,7 @@ async def telegram_login(request: Request, callback: str | None = None):
     if website is None:
         raise BaseHTTPException(404, "no_website")
 
-    redirect_uri = f"https://sso.usso.io/auth/telegram-callback"
+    redirect_uri = "https://sso.usso.io/auth/telegram-callback"
     return HTMLResponse(
         f'<html><body><script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="usso_auth_bot" data-size="large" data-auth-url="{redirect_uri}" data-request-access="write"></script></body></html>'
     )
@@ -548,7 +548,7 @@ async def telegram_callback(
 
 
 @router.post("/logout")
-async def logout(
+async def post_logout(
     request: Request,
     response: Response,
     jti: str = embed,

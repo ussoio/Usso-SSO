@@ -32,7 +32,7 @@ class EmailAuth(BaseModel):
     def validate_password(cls, v):
         errors = password.check_password_strength(v)
         if errors:
-            err_key = errors[0] if len(errors) == 1 else "password_multiple_errors"
+            errors[0] if len(errors) == 1 else "password_multiple_errors"
             # raise BaseHTTPException(
             #     400, err_key, ".\n".join([err[1] for err in errors])
             # )

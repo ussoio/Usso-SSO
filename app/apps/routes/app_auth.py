@@ -57,7 +57,7 @@ class AppAuth(BaseModel):
 
     @field_validator("timestamp")
     def check_timestamp(cls, v: int):
-        if type(v) != int:
+        if not isinstance(v, int):
             v = int(v)
 
         if datetime.now().timestamp() - v > 60:
@@ -75,7 +75,7 @@ class AppAuth(BaseModel):
         return f"{self.app_id}{scopes_hash}{self.timestamp}{self.sso_url}"
 
     def check_secret(self, app_secret: bytes | str):
-        if type(app_secret) != str:
+        if not isinstance(app_secret, str):
             app_secret = app_secret.decode("utf-8")
 
         key = f"{self.hash_key_part}{app_secret}"
@@ -84,7 +84,7 @@ class AppAuth(BaseModel):
         )
 
     def get_secret(self, app_secret: bytes | str):
-        if type(app_secret) != str:
+        if not isinstance(app_secret, str):
             app_secret = app_secret.decode("utf-8")
 
         key = f"{self.hash_key_part}{app_secret}"
