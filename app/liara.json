@@ -2,6 +2,7 @@
     "port": 8000,
     "build": {
         "location": "iran",
+        "platform": "docker",
         "dockerfile": "./Dockerfile"
     }
 }

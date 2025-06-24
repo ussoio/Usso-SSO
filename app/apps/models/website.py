@@ -175,7 +175,7 @@ class Website(base.BaseDBModel, BaseEntity):
         website = redis.get(redis_key)
         # if website:
         #    return cls(**loads(website))
-        website = await cls.find_one(cls.origin == origin)
+        website = await cls.find_one({"origin": origin})
         if not website:
             raise ValueError("Website not found.")
             website = await cls(origin=origin, user_uid="123").save()

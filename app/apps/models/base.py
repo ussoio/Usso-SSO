@@ -56,7 +56,7 @@ class BaseDBModel(CoreEntitySchema):
 
     @classmethod
     async def get_by_uid(cls, uid: str) -> Optional["BaseDBModel"]:
-        item = await cls.find_one(cls.uid == uid, not cls.is_deleted)
+        item = await cls.find_one({"uid": uid, "is_deleted": False})
         return item
 
     @classmethod

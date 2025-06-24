@@ -1,23 +1,16 @@
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS fast-uv
+FROM python:3.12-slim AS fast-base
 
 WORKDIR /app
 
-COPY pyproject.toml pyproject.toml
+COPY requirements.txt requirements.txt
+RUN python -m pip install --no-cache-dir -r requirements.txt -i https://mirror-pypi.runflare.com/simple
 
-RUN uv pip install --system --no-cache-dir .
+RUN adduser --disabled-password --gecos '' user && mkdir /app/logs && chown -R user:user /app/logs
 
-
-FROM python:3.13-slim AS fast-server
-
-WORKDIR /app
-COPY --from=fast-uv /usr/local/lib/python3.13/site-packages \
-                    /usr/local/lib/python3.13/site-packages
-
-RUN adduser --disabled-password --gecos '' user \
-    && mkdir /app/logs \
-    && chown -R user:user /app/logs
+FROM fast-base AS fast-server
 
 USER user
 COPY --chown=user:user . .
 
+# CMD ["python", "-m" ,"debugpy", "--listen", "0.0.0.0:3000", "-m", "app"]
 CMD [ "python", "main.py" ]

@@ -268,7 +268,6 @@ class User(base.BaseDBModel, BaseEntity):
 
         return b64tools.b64_encode_uuid_strip(self.uid)
 
-
     @classmethod
     async def get_user_by_auth(
         cls,
@@ -276,13 +275,19 @@ class User(base.BaseDBModel, BaseEntity):
         **kwargs,
     ) -> Tuple["User", UserAuthenticator]:
         user = await cls.find_one(
-            cls.authenticators.interface == b_auth.interface,
-            cls.authenticators.representor == b_auth.representor,
-            cls.authenticators.auth_method == b_auth.auth_method,
-            # cls.authenticators.validated_at != None,
-            not cls.authenticators.is_deleted,
-            not cls.is_deleted,
+            {
+                "authenticators": {
+                    "$elemMatch": {
+                        "interface": b_auth.interface,
+                        "representor": b_auth.representor,
+                        "auth_method": b_auth.auth_method,
+                        "is_deleted": {"$ne": True},
+                    }
+                },
+                "is_deleted": {"$ne": True},
+            }
         )
+
         if user is None:
             return None, None
 
@@ -352,7 +357,7 @@ class User(base.BaseDBModel, BaseEntity):
         user_auth = await user.add_authenticator(b_auth)
         referrer_user = None
         if referrer_code:
-            referrer_user = await User.find_one(User.referal_code == referrer_code)
+            referrer_user = await User.find_one({"referal_code": referrer_code})
             if referrer_user:
                 user.referrer_code = referrer_code
                 await user.save()

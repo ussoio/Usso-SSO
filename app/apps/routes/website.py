@@ -33,7 +33,7 @@ async def get_website(request: Request):
     if not api_key:
         raise BaseHTTPException(403, "forbidden")
 
-    w = await Website.find_one(Website.api_key == api_key)
+    w = await Website.find_one({"api_key": api_key})
     if not (w and w.uid == website.uid):
         raise BaseHTTPException(403, "forbidden")
     return website
@@ -177,7 +177,7 @@ async def create_by_credentials(
 async def get_user(request: Request, uid: str):
     website = await get_website(request)
 
-    user = await User.find_one(User.uid == uid)
+    user = await User.find_one({"uid": uid})
     if not user:
         logging.warning(f"user_not_found {uid} {website.origin}")
         raise BaseHTTPException(404, "user_not_found")

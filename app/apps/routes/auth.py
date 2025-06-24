@@ -153,6 +153,8 @@ async def phone_otp_request(
         kavenegar_template=website.secrets.kavenegar_template,
     )
 
+    logging.info(f"{phone=} {otp=}")
+
     return JSONResponse(
         {"message": "کد ورود برای شماره‌ی شما پیامک شد.", "length": len(otp)},
         status_code=200,
@@ -613,7 +615,7 @@ async def get_token(request: Request, response: Response, user_id: uuid.UUID = N
     logging.info(f"refresh admin api key {website.origin} {user_id}")
 
     user_id = f"u_{user_id}" if user_id else website.user_uid
-    user = await User.find_one(User.uid == user_id)
+    user = await User.find_one({"uid": user_id})
     if not user:
         raise BaseHTTPException(404, "user_not_found")
     token = await jwt_response(user, request, response, refresh=True)
