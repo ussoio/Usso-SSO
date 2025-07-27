@@ -41,6 +41,7 @@ class BrandingModel(BaseModel):
     shape: ShapeModel | None = None
     palette: PaletteModel = PaletteModel()
     typography: TypographyModel | None = None
+    fontList: list[str] = []
 
 
 class LegalModel(BaseModel):
@@ -178,7 +179,7 @@ def get_branding_model(config):
 def get_config_model(config, language: str = "fa"):
     return ConfigModel(
         branding=config.branding if config.branding else get_branding_model(config),
-        legal=config.legal if config.legal else LegalModel(),
+        legal=config.legal if config.legal else None,
         methods=get_config_methods(config.available_methods, language),
         localization=LocalizationModel(),
         default_redirect_url=config.default_redirect_url,
