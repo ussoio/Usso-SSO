@@ -33,6 +33,14 @@ class TypographyModel(BaseModel):
     allVariants: dict[str, str] = {}
 
 
+class FontModel(BaseModel):
+    name: str
+    url: str
+    weight: str = "400"
+    style: str = "normal"
+    display: str = "swap"
+
+
 class BrandingModel(BaseModel):
     logo: str | None = None
     favicon: str | None = None
@@ -41,7 +49,7 @@ class BrandingModel(BaseModel):
     shape: ShapeModel | None = None
     palette: PaletteModel = PaletteModel()
     typography: TypographyModel | None = None
-    fontList: list[str] = []
+    fontList: list[FontModel] = []
 
 
 class LegalModel(BaseModel):

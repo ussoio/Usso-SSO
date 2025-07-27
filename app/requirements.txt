@@ -13,7 +13,7 @@ aiofiles
 aiocache
 usso[fastapi]<0.28
 
-beanie
+beanie<2
 fastapi-mongo-base<0.10.0
 redis
 
