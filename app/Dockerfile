@@ -3,7 +3,8 @@ FROM python:3.12-slim AS fast-base
 WORKDIR /app
 
 COPY requirements.txt requirements.txt
-RUN python -m pip install --no-cache-dir -r requirements.txt -i https://mirror-pypi.runflare.com/simple
+RUN python -m pip install --no-cache-dir -r requirements.txt 
+    # -i https://mirror-pypi.runflare.com/simple
 
 RUN adduser --disabled-password --gecos '' user && mkdir /app/logs && chown -R user:user /app/logs
 
